@@ -7,8 +7,9 @@ import { logActivity } from "@/lib/activity";
 import { hashPassword, requireOwner, type SessionUser } from "@/lib/auth";
 import { DEFAULT_SITE } from "@/lib/data";
 import { db } from "@/lib/db";
-import { notifyGuest } from "@/lib/mailer";
-import { addBooking, confirmAllPending as confirmAll, deleteBooking, getSite, updateBooking, updateSite } from "@/lib/store";
+import { notifyGuest, sendTestEmail as sendTest } from "@/lib/mailer";
+import { addBooking, confirmAllPending as confirmAll, deleteBooking, getBooking, getSite, updateBooking, updateSite } from "@/lib/store";
+import { berlinNow } from "@/lib/hours";
 import type { BookingStatus, SiteContent } from "@/lib/types";
 import {
   InputError,
@@ -94,6 +95,7 @@ export async function confirmAllPending() {
 
 export async function saveBookingDetails(id: string, input: { table?: string; staffNote?: string; guests?: number; time?: string; date?: string }) {
   return run(async (me) => {
+    const before = await getBooking(str(id, 60, "Reservierung"));
     const booking = await updateBooking(
       str(id, 60, "Reservierung"),
       {
@@ -106,7 +108,23 @@ export async function saveBookingDetails(id: string, input: { table?: string; st
       me.id,
     );
     if (!booking) throw new InputError("Diese Reservierung gibt es nicht mehr.");
-    await logActivity(me, "Reservierung bearbeitet", "reservation", booking.id, `${booking.reference} · ${booking.name}`);
+    const moved =
+      before && (before.date !== booking.date || before.time !== booking.time || before.guests !== booking.guests);
+    await logActivity(
+      me,
+      moved ? "Reservierung verschoben" : "Reservierung bearbeitet",
+      "reservation",
+      booking.id,
+      moved && before
+        ? `${booking.reference} · ${booking.name}: ${before.date} ${before.time} (${before.guests}) → ${booking.date} ${booking.time} (${booking.guests})`
+        : `${booking.reference} · ${booking.name}`,
+    );
+    // Only the guest-facing details trigger an email; a table number or internal note doesn't.
+    if (moved && before && booking.email && (booking.status === "pending" || booking.status === "confirmed")) {
+      const base = await origin();
+      after(() => notifyGuest("changed", booking, base, { date: before.date, time: before.time, guests: before.guests }));
+      return "Gespeichert. Der Gast bekommt eine E-Mail mit den neuen Angaben.";
+    }
     return "Reservierung gespeichert.";
   });
 }
@@ -138,6 +156,11 @@ export async function createStaffBooking(input: Record<string, unknown>) {
       booking.id,
       `${booking.reference} · ${booking.name} · ${booking.guests} am ${booking.date} ${booking.time}`,
     );
+    if (booking.email && booking.status === "confirmed") {
+      const base = await origin();
+      after(() => notifyGuest("confirmed", booking, base));
+      return `${booking.name} eingetragen (${booking.reference}). Bestätigung per E-Mail ist unterwegs.`;
+    }
     return `${booking.name} eingetragen (${booking.reference}).`;
   });
 }
@@ -147,7 +170,28 @@ export async function removeBooking(id: string) {
     const booking = await deleteBooking(str(id, 60, "Reservierung"));
     if (!booking) throw new InputError("Diese Reservierung gibt es nicht mehr.");
     await logActivity(me, "Reservierung gelöscht", "reservation", booking.id, `${booking.reference} · ${booking.name}`);
+    // Deleting a table the guest still expects counts as a cancellation for them.
+    if (booking.email && (booking.status === "pending" || booking.status === "confirmed") && booking.date >= berlinNow().date) {
+      const base = await origin();
+      after(() => notifyGuest("cancelled", booking, base));
+      return "Reservierung gelöscht. Der Gast wurde per E-Mail informiert.";
+    }
     return "Reservierung gelöscht.";
+  });
+}
+
+export async function sendTestEmail() {
+  return run(async (me) => {
+    try {
+      await sendTest(await origin());
+    } catch (error) {
+      if (error instanceof Error && error.message === "not-configured")
+        throw new InputError("Die E-Mail-Zugangsdaten fehlen noch (GMAIL_USER, GMAIL_APP_PASSWORD, RESERVATION_NOTIFY_EMAIL).");
+      console.error(error);
+      throw new InputError("Gmail hat die Anmeldung abgelehnt. Bitte App-Passwort und Absender-Adresse prüfen.");
+    }
+    await logActivity(me, "Test-E-Mail gesendet", "mail", "", process.env.RESERVATION_NOTIFY_EMAIL ?? "");
+    return `Test-E-Mail an ${process.env.RESERVATION_NOTIFY_EMAIL} gesendet.`;
   });
 }
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CheckCircle, DownloadSimple, UploadSimple, WarningCircle } from "@phosphor-icons/react";
-import { resetContent, restoreBackup, saveVenue } from "@/app/admin/actions";
+import { CheckCircle, DownloadSimple, EnvelopeSimple, UploadSimple, WarningCircle } from "@phosphor-icons/react";
+import { resetContent, restoreBackup, saveVenue, sendTestEmail } from "@/app/admin/actions";
 import { Button, Card, Field, Input, PageHeader, SaveBar, useAction, useDraft } from "@/components/admin/ui";
 import type { Venue } from "@/lib/types";
 
@@ -62,10 +62,15 @@ export default function VenueEditor({ venue, setup }: Props) {
           <Card title="Einrichtung">
             <ul className="flex flex-col gap-4">
               <SetupRow ok={true} title="Datenbank (Neon)" body="Projekt „paulaner“, Frankfurt. Reservierungen, Konten und Inhalte liegen hier." />
-              <SetupRow ok={setup.mail} title="E-Mails bei Reservierungen" body="Gmail-Zugang in GMAIL_USER, GMAIL_APP_PASSWORD und RESERVATION_NOTIFY_EMAIL." />
+              <SetupRow ok={setup.mail} title="E-Mails bei Reservierungen" body="Bestätigung, Änderung und Stornierung gehen automatisch an Gäste; neue Anfragen an euch. Gmail-Zugang in GMAIL_USER, GMAIL_APP_PASSWORD und RESERVATION_NOTIFY_EMAIL." />
               <SetupRow ok={setup.google} title="Mit Google anmelden" body="GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET aus der Google Cloud Console." />
               <SetupRow ok={setup.cron} title="Automatische Löschfristen" body="CRON_SECRET für die tägliche Bereinigung alter Daten (DSGVO)." />
             </ul>
+            {setup.mail && (
+              <Button className="mt-5" variant="secondary" size="sm" busy={pending} onClick={() => run(() => sendTestEmail())}>
+                <EnvelopeSimple size={15} /> Test-E-Mail senden
+              </Button>
+            )}
           </Card>
 
           <Card title="Sicherung">

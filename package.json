@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:setup": "node --env-file-if-exists=.env.local scripts/setup-db.mjs"
+    "db:setup": "node --env-file-if-exists=.env.local scripts/setup-db.mjs",
+    "mail:preview": "npx -y tsx --conditions=react-server --env-file-if-exists=.env.local scripts/mail-preview.mts"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

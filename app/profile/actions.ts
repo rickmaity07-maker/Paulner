@@ -6,8 +6,15 @@ import { after } from "next/server";
 import { logActivity } from "@/lib/activity";
 import { destroySession, hashPassword, requireUser, revokeOtherSessions, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { notifyCancellation } from "@/lib/mailer";
+import { headers } from "next/headers";
+import { notifyCancellation, notifyGuest } from "@/lib/mailer";
 import { getBooking } from "@/lib/store";
+
+async function requestOrigin() {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  return `${h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")}://${host}`;
+}
 
 export type ProfileError = "name" | "phone" | "wrongPassword" | "password";
 export interface ProfileState {
@@ -62,7 +69,11 @@ export async function cancelMyReservation(form: FormData) {
   if (!booking) return;
 
   await logActivity(me, "Vom Gast storniert", "reservation", id, `${booking.reference} · ${booking.name}, ${booking.date}`);
-  after(() => notifyCancellation(booking, me.email));
+  const base = await requestOrigin();
+  after(async () => {
+    await notifyCancellation(booking, me.email);
+    await notifyGuest("cancelledByGuest", booking, base);
+  });
   revalidatePath("/profile");
   revalidatePath("/admin", "layout");
 }
