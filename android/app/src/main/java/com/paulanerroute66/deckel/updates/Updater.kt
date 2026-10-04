@@ -168,10 +168,6 @@ class Updater(private val context: Context, private val api: Api) {
         }
     }
 
-    fun dismissFailure() {
-        (_state.value as? UpdateState.Failed)?.let { _state.value = UpdateState.Available(it.release, false) }
-    }
-
     private class UpdateException(val reason: String) : Exception(reason)
 
     companion object {

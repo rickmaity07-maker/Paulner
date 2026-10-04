@@ -152,7 +152,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun dismissUpdate() = _state.update { it.copy(updateDismissed = true) }
-    fun retryUpdate() = updater.dismissFailure()
     fun updatePermissionIntent() = updater.permissionIntent()
     val currentVersionName: String get() = com.paulanerroute66.deckel.BuildConfig.VERSION_NAME
 

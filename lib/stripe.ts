@@ -9,7 +9,6 @@ import { ApiError } from "@/lib/app-auth";
 */
 let client: Stripe | null = null;
 
-export const isStripeConfigured = () => Boolean(process.env.STRIPE_SECRET_KEY);
 export const stripeMode = () => (process.env.STRIPE_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test");
 
 export function stripe() {

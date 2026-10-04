@@ -211,23 +211,6 @@ export async function saveMenu(menu: unknown) {
   });
 }
 
-export async function setDrinkSoldOut(drinkId: string, soldOut: boolean) {
-  return run(async (me) => {
-    let name = "";
-    await updateSite((site) => {
-      for (const c of site.menu)
-        for (const d of c.drinks)
-          if (d.id === drinkId) {
-            d.soldOut = soldOut;
-            name = d.name;
-          }
-    }, me.id);
-    if (!name) throw new InputError("Dieses Getränk steht nicht mehr auf der Karte.");
-    await logActivity(me, soldOut ? "Ausverkauft markiert" : "Wieder verfügbar", "content", drinkId, name);
-    return `${name}: ${soldOut ? "ausverkauft" : "wieder da"}.`;
-  });
-}
-
 export async function saveTaps(taps: unknown) {
   return run(async (me) => {
     const clean = cleanTaps(taps);

@@ -68,8 +68,6 @@ object UpdateNotifier {
         runCatching { NotificationManagerCompat.from(context).notify(1066, notification) }
         prefs.edit().putInt("announced", release.versionCode).apply()
     }
-
-    fun dismiss(context: Context) = NotificationManagerCompat.from(context).cancel(1066)
 }
 
 class UpdateCheckWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {

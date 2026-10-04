@@ -98,13 +98,6 @@ export async function getBookings(): Promise<Booking[]> {
   return rows.map(toBooking);
 }
 
-export async function getBookingsForUser(userId: string): Promise<Booking[]> {
-  const rows = (await db().query(`select ${COLUMNS} from reservations where user_id = $1 order by date desc, time desc limit 100`, [
-    userId,
-  ])) as ReservationRow[];
-  return rows.map(toBooking);
-}
-
 export async function getBooking(id: string): Promise<Booking | null> {
   const rows = (await db().query(`select ${COLUMNS} from reservations where id = $1`, [id])) as ReservationRow[];
   return rows[0] ? toBooking(rows[0]) : null;

@@ -7,7 +7,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -327,9 +326,4 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: @Composa
         Text(text, style = MaterialTheme.typography.headlineSmall, color = Route66.Ink, modifier = Modifier.weight(1f))
         trailing?.invoke()
     }
-}
-
-@Composable
-fun BorderedBox(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Box(modifier.clip(RoundedCornerShape(18.dp)).border(1.dp, Route66.Ink.copy(alpha = 0.1f), RoundedCornerShape(18.dp))) { content() }
 }

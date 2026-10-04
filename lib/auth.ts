@@ -111,6 +111,3 @@ export async function requireOwner(): Promise<SessionUser> {
   if (!session || session.role !== "owner") redirect("/login");
   return session;
 }
-
-/* Server actions and route handlers in the portal use this name. */
-export const requireAdmin = requireOwner;

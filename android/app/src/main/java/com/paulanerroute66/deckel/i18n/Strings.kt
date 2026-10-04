@@ -8,7 +8,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 */
 data class Strings(
     val code: String,
-    val appName: String = "Deckel",
     val nav: Nav,
     val login: Login,
     val tabs: Tabs,
