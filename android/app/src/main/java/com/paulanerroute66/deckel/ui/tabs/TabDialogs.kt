@@ -165,7 +165,7 @@ fun NewTabDialog(state: UiState, vm: AppViewModel, onDismiss: () -> Unit) {
                 value = label,
                 onValueChange = { label = it },
                 label = { Text(strings.tabs.walkInLabel) },
-                supportingText = { Text(strings.tabs.walkInHint) },
+                supportingText = { Text(strings.tabs.tableHint) },
                 singleLine = true,
                 colors = field(),
                 shape = RoundedCornerShape(18.dp),
@@ -180,6 +180,7 @@ fun NewTabDialog(state: UiState, vm: AppViewModel, onDismiss: () -> Unit) {
             singleLine = true,
             colors = field(),
             shape = RoundedCornerShape(18.dp),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
             modifier = Modifier.width(220.dp).testTag("newtab-table"),
         )
         Spacer(Modifier.height(16.dp))
@@ -201,7 +202,7 @@ fun NewTabDialog(state: UiState, vm: AppViewModel, onDismiss: () -> Unit) {
                     if (forGuest) guest?.let { vm.openTab(it.name, table, mode, it.id) } else vm.openTab(label, table, mode, null)
                     onDismiss()
                 },
-                enabled = if (forGuest) guest != null else label.isNotBlank(),
+                enabled = if (forGuest) guest != null else label.isNotBlank() || table.isNotBlank(),
                 big = true,
                 modifier = Modifier.fillMaxWidth(),
                 testTag = "newtab-open",

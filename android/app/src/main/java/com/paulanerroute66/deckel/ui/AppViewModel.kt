@@ -130,7 +130,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Look for a new version right away, then every half hour, signed in or not.
         viewModelScope.launch {
             while (isActive) {
-                updater.check()
+                // Also into the notification bar, so it's seen while the app is in the background.
+                (updater.check() as? com.paulanerroute66.deckel.updates.UpdateState.Available)?.let {
+                    com.paulanerroute66.deckel.updates.UpdateNotifier.announce(getApplication(), it.release, _state.value.language)
+                }
                 delay(30 * 60_000L)
             }
         }
@@ -368,20 +371,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         act { applyTab(api.setQty(id, itemId, qty)) }
     }
 
-    fun pay(amountCents: Int, tipCents: Int, method: PayMethod, done: () -> Unit) {
+    /* `items` set: a guest pays for just those drinks (split bill); the server works out the amount. */
+    fun pay(amountCents: Int, tipCents: Int, method: PayMethod, done: () -> Unit, items: List<com.paulanerroute66.deckel.data.PaidItem>? = null) {
         val id = _state.value.selectedTabId ?: return
-        if (method == PayMethod.TapToPay) return chargeCard(id, amountCents, tipCents, done)
+        if (method == PayMethod.TapToPay) return chargeCard(id, amountCents, tipCents, items, done)
         act {
-            applyTab(api.pay(id, amountCents, tipCents, method))
+            applyTab(api.pay(id, amountCents, tipCents, method, items))
             notify("${Money.format(amountCents, strings.code)} · ${methodName(method)}")
             done()
         }
     }
 
-    private fun chargeCard(tabId: String, amountCents: Int, tipCents: Int, done: () -> Unit) {
+    private fun chargeCard(tabId: String, amountCents: Int, tipCents: Int, items: List<com.paulanerroute66.deckel.data.PaidItem>?, done: () -> Unit) {
         viewModelScope.launch {
             try {
-                val tab = reader.charge(tabId, amountCents, tipCents) { step -> _state.update { it.copy(paymentStep = step) } }
+                val tab = reader.charge(tabId, amountCents, tipCents, items) { step -> _state.update { it.copy(paymentStep = step) } }
                 applyTab(tab)
                 notify("${Money.format(amountCents + tipCents, strings.code)} · ${strings.pay.tapToPay} ✓")
                 done()

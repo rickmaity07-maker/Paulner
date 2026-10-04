@@ -29,6 +29,7 @@ class DeckelApp : Application() {
         */
         if (getProcessName().endsWith(":stripetaptopay")) return
         container = Container(this)
+        com.paulanerroute66.deckel.updates.UpdateNotifier.schedule(this)
         // Stripe's lifecycle hook is likewise heavy; it only matters once a card payment starts.
         Executors.newSingleThreadExecutor().execute { runCatching { TerminalApplicationDelegate.onCreate(this) } }
     }

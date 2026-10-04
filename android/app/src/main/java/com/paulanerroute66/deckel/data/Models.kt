@@ -81,9 +81,15 @@ data class TabItem(
     val addedBy: String = "",
     val voided: Boolean = false,
     val voidReason: String = "",
+    val paidQty: Int = 0, // already paid for separately (split bill)
 ) {
     val lineCents get() = if (voided || onHouse) 0 else unitPriceCents * qty
+    /* How many of this line a guest can still pay for on their own. */
+    val payableQty get() = if (voided || onHouse) 0 else qty - paidQty
 }
+
+/* One drink a guest pays for when the table splits the bill. */
+data class PaidItem(val itemId: String, val qty: Int)
 
 @Serializable
 data class Payment(

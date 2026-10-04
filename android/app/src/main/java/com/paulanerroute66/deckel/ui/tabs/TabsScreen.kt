@@ -200,10 +200,14 @@ private fun TabList(state: UiState, vm: AppViewModel, onNew: () -> Unit, modifie
     Column(modifier.background(Route66.Paper.copy(alpha = 0.5f)).padding(if (LocalCompact.current) 14.dp else 18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                // Today's date beside the heading, e.g. "Offene Deckel · Mo. 5. Okt."
+                Eyebrow(strings.tabs.open)
+                // The count, with today's date beside it, e.g. "3  Mo. 5. Okt."
                 val today = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEE d. MMM", java.util.Locale.forLanguageTag(strings.code)))
-                Eyebrow("${strings.tabs.open} · $today")
-                Text("${state.openTabs.size}", fontFamily = Rye, fontSize = 34.sp, color = Route66.Ink)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("${state.openTabs.size}", fontFamily = Rye, fontSize = 34.sp, color = Route66.Ink)
+                    Spacer(Modifier.width(10.dp))
+                    Text(today, style = MaterialTheme.typography.bodyMedium, color = Route66.Muted, maxLines = 1)
+                }
             }
             PillButton(strings.tabs.newTab, onNew, icon = Icons.Rounded.Add, testTag = "new-tab")
         }
@@ -254,7 +258,10 @@ private fun TabCard(tab: Tab, selected: Boolean, onClick: () -> Unit) {
                 if (tab.customer != null) Avatar(tab.customer.name, size = 34.dp) else Box(
                     Modifier.size(34.dp).clip(CircleShape).background(if (selected) Route66.Chrome.copy(alpha = 0.15f) else Route66.Paper),
                     contentAlignment = Alignment.Center,
-                ) { Text("#${tab.number}", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                ) {
+                    if (tab.table.isNotBlank() && tab.table.length <= 4) Text(tab.table, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    else Text("#${tab.number}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(tab.label, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -482,10 +489,12 @@ private fun ItemRow(item: TabItem, onClick: () -> Unit) {
                     when {
                         item.voided -> " · ${strings.tabs.voided}${if (item.voidReason.isNotBlank()) ": ${item.voidReason}" else ""}"
                         item.onHouse -> " · ${strings.tabs.onHouse}"
+                        item.paidQty >= item.qty -> " · ✓ ${strings.tabs.paidSeparately}"
+                        item.paidQty > 0 -> " · ✓ ${strings.tabs.paidPart(item.paidQty, item.qty)}"
                         else -> ""
                     },
                 style = MaterialTheme.typography.bodySmall,
-                color = if (item.onHouse) Route66.Blue else Route66.Muted,
+                color = if (item.onHouse) Route66.Blue else if (item.paidQty > 0 && !item.voided) Route66.Green else Route66.Muted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

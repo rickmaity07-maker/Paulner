@@ -43,7 +43,7 @@ data class Tabs(
     val alreadyOpen: String, val closeConfirm: String, val onAccountConfirm: (String, String) -> String, val voidConfirm: String,
     val soldOut: String, val owes: (String) -> String, val by: (String) -> String, val modeTitle: String, val number: (Int) -> String,
     val closed: String, val onAccount: String, val voidStatus: String, val categories: String,
-    val bill: String, val roundEmptyPhone: String,
+    val bill: String, val roundEmptyPhone: String, val paidSeparately: String, val paidPart: (Int, Int) -> String, val tableHint: String,
 )
 
 data class Pay(
@@ -52,6 +52,7 @@ data class Pay(
     val given: String, val change: (String) -> String, val confirm: (String) -> String, val tapPrompt: String, val tapWaiting: String,
     val tapProcessing: String, val tapSuccess: String, val tapCancel: String, val simulated: String, val readerOffline: String,
     val settleTitle: String, val settleHint: (String) -> String, val partial: String, val methodOf: (String) -> String,
+    val byAmount: String, val byDrinks: String, val drinksHint: String, val drinksNone: String, val selected: (Int) -> String, val all: String, val clear: String,
 )
 
 data class ItemCopy(
@@ -86,7 +87,7 @@ data class UpdateCopy(
     val available: (String) -> String, val title: String, val mandatoryTitle: String, val mandatoryBody: String, val whatsNew: String,
     val install: String, val later: String, val downloading: (Int) -> String, val installing: String, val permissionTitle: String,
     val permissionBody: String, val openSettings: String, val failed: String, val reasons: Map<String, String>, val check: String,
-    val upToDate: String, val current: (String) -> String,
+    val upToDate: String, val current: (String) -> String, val tapToInstall: String, val channel: String,
 )
 
 data class Common(
@@ -118,7 +119,11 @@ private val errorsDe = mapOf(
     "customer_owes_money" to "Gäste mit offenen Beträgen können nicht archiviert werden.",
     "credit_limit_needs_owner" to "Das Anschreibe-Limit kann nur der Inhaber ändern.",
     "name_required" to "Bitte einen Namen angeben.",
-    "label_required" to "Bitte einen Namen für den Deckel angeben.",
+    "label_required" to "Bitte einen Namen oder eine Tischnummer angeben.",
+    "item_paid" to "Dieses Getränk wurde schon einzeln bezahlt. Erst die Zahlung zurücknehmen.",
+    "item_already_paid" to "Ein Getränk wurde inzwischen schon bezahlt. Bitte neu auswählen.",
+    "item_not_payable" to "Dieses Getränk kann nicht einzeln bezahlt werden.",
+    "items_invalid" to "Bitte mindestens ein Getränk auswählen.",
     "email_invalid" to "Die E-Mail-Adresse sieht nicht richtig aus.",
     "stripe_not_configured" to "Kartenzahlung per Tap to Pay ist noch nicht eingerichtet.",
     "payment_not_succeeded" to "Die Kartenzahlung wurde nicht abgeschlossen.",
@@ -150,7 +155,11 @@ private val errorsEn = mapOf(
     "customer_owes_money" to "Guests who owe money can't be archived.",
     "credit_limit_needs_owner" to "Only the owner can change the credit limit.",
     "name_required" to "Please enter a name.",
-    "label_required" to "Please give the tab a name.",
+    "label_required" to "Please give the tab a name or a table number.",
+    "item_paid" to "This drink was already paid for separately. Refund that payment first.",
+    "item_already_paid" to "A drink has been paid for in the meantime. Please choose again.",
+    "item_not_payable" to "This drink can't be paid for separately.",
+    "items_invalid" to "Please choose at least one drink.",
     "email_invalid" to "That email address looks wrong.",
     "stripe_not_configured" to "Tap to Pay card payments aren't set up yet.",
     "payment_not_succeeded" to "The card payment didn't complete.",
@@ -182,6 +191,7 @@ val German = Strings(
         voidConfirm = "Den ganzen Deckel stornieren? Alle Getränke werden storniert.", soldOut = "aus", owes = { "schuldet $it" }, by = { "von $it" },
         modeTitle = "Zahlweise", number = { "Nr. $it" }, closed = "Abgeschlossen", onAccount = "Angeschrieben", voidStatus = "Storniert", categories = "Karte",
         bill = "Rechnung", roundEmptyPhone = "Getränke unter „Karte“ antippen",
+        paidSeparately = "bezahlt", paidPart = { paid, of -> "$paid von $of bezahlt" }, tableHint = "Name oder Tisch reicht, z. B. nur „7“",
     ),
     pay = Pay(
         title = "Bezahlen", due = "Offen", amount = "Betrag", tip = "Trinkgeld", noTip = "Kein", roundUp = "Aufrunden", rest = "Alles", half = "Hälfte",
@@ -190,6 +200,9 @@ val German = Strings(
         tapWaiting = "Warte auf Karte …", tapProcessing = "Zahlung wird verarbeitet …", tapSuccess = "Bezahlt!", tapCancel = "Abbrechen",
         simulated = "Testmodus: simulierter Kartenleser", readerOffline = "Kartenleser nicht verbunden", settleTitle = "Schulden begleichen",
         settleHint = { "Offen: $it. Der älteste Deckel wird zuerst beglichen." }, partial = "Teilbetrag", methodOf = { it },
+        byAmount = "Betrag", byDrinks = "Getränke auswählen", drinksHint = "Tippe an, was dieser Gast hatte. Jeder zahlt nur seine Getränke.",
+        drinksNone = "Alle Getränke sind schon einzeln bezahlt.", selected = { if (it == 1) "1 Getränk ausgewählt" else "$it Getränke ausgewählt" },
+        all = "Alle", clear = "Keine",
     ),
     item = ItemCopy(
         title = "Getränk", qty = "Menge", voidTitle = "Stornieren", reasons = listOf("Falsch getippt", "Verschüttet", "Reklamation", "Doppelt gebucht"),
@@ -225,7 +238,7 @@ val German = Strings(
         added = { "$it gebucht" },
     ),
     update = UpdateCopy(
-        available = { "Update $it verfügbar" }, title = "Neue Version", mandatoryTitle = "Update erforderlich",
+        available = { "Update $it verfügbar" }, title = "Neue Version", tapToInstall = "Tippe hier, um es zu installieren.", channel = "App-Updates", mandatoryTitle = "Update erforderlich",
         mandatoryBody = "Diese Version wird nicht mehr unterstützt. Bitte jetzt aktualisieren, danach geht es sofort weiter.",
         whatsNew = "Neu in dieser Version", install = "Jetzt installieren", later = "Später", downloading = { "Wird geladen … $it %" },
         installing = "Wird installiert …", permissionTitle = "Einmalig erlauben",
@@ -259,6 +272,7 @@ val English = German.copy(
         soldOut = "out", owes = { "owes $it" }, by = { "by $it" }, modeTitle = "Payment", number = { "No. $it" }, closed = "Closed", onAccount = "On account",
         voidStatus = "Voided", categories = "Menu",
         bill = "Bill", roundEmptyPhone = "Tap drinks under \"Menu\"",
+        paidSeparately = "paid", paidPart = { paid, of -> "$paid of $of paid" }, tableHint = "A name or a table is enough, e.g. just \"7\"",
     ),
     pay = Pay(
         title = "Take payment", due = "Owed", amount = "Amount", tip = "Tip", noTip = "None", roundUp = "Round up", rest = "All", half = "Half",
@@ -267,6 +281,9 @@ val English = German.copy(
         tapProcessing = "Processing payment …", tapSuccess = "Paid!", tapCancel = "Cancel", simulated = "Test mode: simulated card reader",
         readerOffline = "Card reader not connected", settleTitle = "Settle debt", settleHint = { "Owed: $it. The oldest tab is settled first." },
         partial = "Part amount", methodOf = { it },
+        byAmount = "Amount", byDrinks = "Choose drinks", drinksHint = "Tap what this guest had. Everyone pays only for their own drinks.",
+        drinksNone = "Every drink has already been paid for separately.", selected = { if (it == 1) "1 drink selected" else "$it drinks selected" },
+        all = "All", clear = "None",
     ),
     item = ItemCopy(
         title = "Drink", qty = "Quantity", voidTitle = "Void", reasons = listOf("Mistyped", "Spilled", "Complaint", "Booked twice"),
@@ -300,7 +317,7 @@ val English = German.copy(
         done = "Done", yes = "Yes", no = "No", owner = "Owner", staff = "Staff", refresh = "Refresh", undo = "Undo", added = { "$it booked" },
     ),
     update = UpdateCopy(
-        available = { "Update $it available" }, title = "New version", mandatoryTitle = "Update required",
+        available = { "Update $it available" }, title = "New version", tapToInstall = "Tap here to install it.", channel = "App updates", mandatoryTitle = "Update required",
         mandatoryBody = "This version is no longer supported. Please update now; you'll be straight back in afterwards.",
         whatsNew = "What's new", install = "Install now", later = "Later", downloading = { "Downloading … $it %" },
         installing = "Installing …", permissionTitle = "Allow once",

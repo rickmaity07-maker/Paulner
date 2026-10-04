@@ -56,6 +56,7 @@ export interface TabItem {
   addedBy: string;
   voided: boolean;
   voidReason: string;
+  paidQty: number; // how many of qty a guest already paid for on their own (split bill)
 }
 
 export interface Payment {
@@ -201,7 +202,9 @@ export async function getTab(id: string): Promise<TabDetail> {
     sql.query(`${SUMMARY_SQL} where t.id = $1`, [uuid(id, "tab")]) as unknown as Promise<SummaryRow[]>,
     sql`
       select i.id, i.drink_id, i.name, i.size, i.category, i.unit_price_cents, i.qty, i.on_house, i.added_at,
-             coalesce(u.name, u.email, '') as added_by, i.voided_at, i.void_reason
+             coalesce(u.name, u.email, '') as added_by, i.voided_at, i.void_reason,
+             coalesce((select sum(pi.qty) from payment_items pi join payments p on p.id = pi.payment_id
+                       where pi.item_id = i.id and p.refunded_at is null), 0)::int as paid_qty
       from tab_items i left join users u on u.id = i.added_by
       where i.tab_id = ${id} order by i.added_at, i.id
     ` as unknown as Promise<Record<string, unknown>[]>,
@@ -228,6 +231,7 @@ export async function getTab(id: string): Promise<TabDetail> {
       addedBy: i.added_by as string,
       voided: Boolean(i.voided_at),
       voidReason: i.void_reason as string,
+      paidQty: i.paid_qty as number,
     })),
     payments: payments.map(toPayment),
   };
@@ -279,10 +283,13 @@ export async function openTab(user: AppUser, input: Record<string, unknown>) {
     const [existing] = (await sql`select id from tabs where customer_id = ${customerId} and status = 'open' limit 1`) as { id: string }[];
     if (existing) throw new ApiError(409, "customer_has_open_tab", existing.id);
   }
+  const table = text(input.table, 20, "table");
+  // Just a table number is enough: the tab is then called "Tisch 7".
+  if (!label && table) label = /^\d/.test(table) ? `Tisch ${table}` : table;
   if (!label) throw new ApiError(422, "label_required");
   const [row] = (await sql`
     insert into tabs (customer_id, label, table_label, mode, note, opened_by)
-    values (${customerId}, ${label}, ${text(input.table, 20, "table")}, ${mode}, ${text(input.note, 200, "note")}, ${user.id})
+    values (${customerId}, ${label}, ${table}, ${mode}, ${text(input.note, 200, "note")}, ${user.id})
     returning id, number
   `) as { id: string; number: number }[];
   await logActivity(user, "Deckel eröffnet", "tab", row.id, `#${row.number} ${label}`);
@@ -382,6 +389,12 @@ export async function changeItem(user: AppUser, tabId: string, itemId: string, i
     voided_at: string | null;
   }[];
   if (!item) throw new ApiError(404, "item_not_found");
+  const [{ paid }] = (await sql`
+    select coalesce(sum(pi.qty), 0)::int as paid from payment_items pi join payments p on p.id = pi.payment_id
+    where pi.item_id = ${itemId} and p.refunded_at is null
+  `) as { paid: number }[];
+  // A drink someone already paid for separately stays as it is; refund that payment first.
+  if (paid > 0 && input.action !== "charge") throw new ApiError(409, "item_paid");
 
   if (input.action === "void") {
     if (item.voided_at) throw new ApiError(409, "item_already_voided");
@@ -407,6 +420,42 @@ export async function changeItem(user: AppUser, tabId: string, itemId: string, i
   return getTab(tabId);
 }
 
+/*
+  Split bill: a guest pays for the drinks they had. `raw` is [{ itemId, qty }];
+  each line must be on this tab, still owed (not voided, not on the house) and
+  not already paid for. The amount is worked out here, never trusted from the device.
+*/
+export function allocateItems(tab: TabDetail, raw: unknown) {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 100) throw new ApiError(422, "items_invalid");
+  const byId = new Map(tab.items.map((i) => [i.id, i]));
+  const lines = new Map<string, number>();
+  for (const line of raw as Record<string, unknown>[]) {
+    const item = byId.get(String(line?.itemId ?? ""));
+    if (!item || item.voided || item.onHouse) throw new ApiError(422, "item_not_payable");
+    const qty = (lines.get(item.id) ?? 0) + cents(line.qty ?? 1, "qty", { min: 1, max: 99 });
+    if (qty > item.qty - item.paidQty) throw new ApiError(409, "item_already_paid", item.name);
+    lines.set(item.id, qty);
+  }
+  const amount = [...lines].reduce((sum, [id, qty]) => sum + byId.get(id)!.unitPriceCents * qty, 0);
+  return { lines: [...lines].map(([itemId, qty]) => ({ itemId, qty })), amount };
+}
+
+/* Packs an allocation into Stripe metadata (values are limited to 500 characters) and back. */
+export const packItems = (lines: { itemId: string; qty: number }[]) => {
+  const text = lines.map((l) => `${l.itemId}:${l.qty}`).join(",");
+  const chunks: Record<string, string> = {};
+  for (let i = 0; i * 480 < text.length && i < 20; i++) chunks[`items_${i}`] = text.slice(i * 480, (i + 1) * 480);
+  return chunks;
+};
+export const unpackItems = (metadata: Record<string, string>) => {
+  const text = Object.keys(metadata)
+    .filter((k) => /^items_\d+$/.test(k))
+    .sort((a, b) => Number(a.slice(6)) - Number(b.slice(6)))
+    .map((k) => metadata[k])
+    .join("");
+  return text ? text.split(",").map((pair) => ({ itemId: pair.split(":")[0], qty: Number(pair.split(":")[1]) })) : undefined;
+};
+
 export async function addPayment(user: AppUser, tabId: string, input: Record<string, unknown>, stripeIntent = "") {
   const tab = await lockedTab(tabId, { allowClosed: true });
   if (tab.status === "void" || tab.status === "closed") throw new ApiError(409, "tab_not_open");
@@ -414,15 +463,26 @@ export async function addPayment(user: AppUser, tabId: string, input: Record<str
   if (!method) throw new ApiError(422, "method_invalid");
   if (method === "tap_to_pay" && !stripeIntent) throw new ApiError(422, "tap_to_pay_needs_stripe");
   const current = await getTab(tabId);
-  const amount = cents(input.amountCents, "amount", { min: 1 });
+  const split = input.items !== undefined ? allocateItems(current, input.items) : null;
+  const amount = split ? split.amount : cents(input.amountCents, "amount", { min: 1 });
+  if (amount < 1) throw new ApiError(422, "amount_invalid");
   if (amount > current.balanceCents) throw new ApiError(422, "amount_exceeds_balance");
   const tip = cents(input.tipCents ?? 0, "tip", { max: 100_000 });
-  await db()`
-    insert into payments (tab_id, customer_id, amount_cents, tip_cents, method, stripe_payment_intent, taken_by, note)
-    values (${tabId}, ${tab.customer_id}, ${amount}, ${tip}, ${method}, ${stripeIntent}, ${user.id}, ${text(input.note, 120, "note")})
-  `;
-  await db()`update tabs set updated_at = now() where id = ${tabId}`;
-  await logActivity(user, "Zahlung", "tab", tabId, `#${tab.number} ${tab.label}: ${(amount / 100).toFixed(2)} € ${method}${tip ? ` + ${(tip / 100).toFixed(2)} € Trinkgeld` : ""}`);
+  const sql = db();
+  const paymentId = randomUUID();
+  const note = text(input.note, 120, "note") || (split ? "Getrennt" : "");
+  await sql.transaction([
+    sql`
+      insert into payments (id, tab_id, customer_id, amount_cents, tip_cents, method, stripe_payment_intent, taken_by, note)
+      values (${paymentId}, ${tabId}, ${tab.customer_id}, ${amount}, ${tip}, ${method}, ${stripeIntent}, ${user.id}, ${note})
+    `,
+    ...(split?.lines ?? []).map((l) => sql`insert into payment_items (payment_id, item_id, qty) values (${paymentId}, ${l.itemId}, ${l.qty})`),
+    sql`update tabs set updated_at = now() where id = ${tabId}`,
+  ]);
+  const paidFor = split
+    ? ` für ${split.lines.map((l) => `${l.qty}× ${current.items.find((i) => i.id === l.itemId)?.name}`).join(", ")}`
+    : "";
+  await logActivity(user, split ? "Getrennt bezahlt" : "Zahlung", "tab", tabId, `#${tab.number} ${tab.label}: ${(amount / 100).toFixed(2)} € ${method}${tip ? ` + ${(tip / 100).toFixed(2)} € Trinkgeld` : ""}${paidFor}`);
   const after = await getTab(tabId);
   // A fully paid tab that was carried on account closes itself.
   if (after.status === "on_account" && after.balanceCents === 0) {

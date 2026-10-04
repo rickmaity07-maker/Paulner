@@ -180,10 +180,10 @@ class CardReader(private val context: Context, private val api: Api) {
       checks the amount), the reader collects and confirms it, and the website
       records it after verifying with Stripe. Returns the updated tab.
     */
-    suspend fun charge(tabId: String, amountCents: Int, tipCents: Int, onStep: (PaymentStep) -> Unit): Tab {
+    suspend fun charge(tabId: String, amountCents: Int, tipCents: Int, items: List<com.paulanerroute66.deckel.data.PaidItem>? = null, onStep: (PaymentStep) -> Unit): Tab {
         if (_state.value !is ReaderState.Connected) throw ApiException("reader_offline", 0)
         onStep(PaymentStep.Preparing)
-        val intent = api.stripeIntent(tabId, amountCents, tipCents)
+        val intent = api.stripeIntent(tabId, amountCents, tipCents, items)
         val secret = intent.clientSecret ?: throw ApiException("payment_intent_invalid", 0)
         val retrieved = suspendCancellableCoroutine<PaymentIntent> { cont ->
             Terminal.getInstance().retrievePaymentIntent(secret, object : PaymentIntentCallback {

@@ -153,6 +153,16 @@ create index if not exists payments_tab_idx on payments (tab_id);
 create index if not exists payments_customer_idx on payments (customer_id);
 create index if not exists payments_taken_idx on payments (taken_at desc);
 
+-- Which drinks a payment covered, when a table splits the bill ("I had the two Pils").
+-- A drink counts as paid while its payment is not refunded.
+create table if not exists payment_items (
+  payment_id uuid not null references payments (id) on delete cascade,
+  item_id uuid not null references tab_items (id) on delete cascade,
+  qty integer not null check (qty between 1 and 99),
+  primary key (payment_id, item_id)
+);
+create index if not exists payment_items_item_idx on payment_items (item_id);
+
 -- ---------- Online updates for the tablet app ----------
 -- One row per published version; the tablet installs the newest one. A mandatory
 -- version blocks older apps until they update (e.g. after an API change).

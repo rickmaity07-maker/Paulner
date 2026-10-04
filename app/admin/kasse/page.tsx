@@ -70,6 +70,9 @@ function TabDetailCard({ tab, closeHref }: { tab: TabDetail; closeHref: string }
                       {clock(i.addedAt)} · {i.addedBy || "–"}
                       {i.onHouse && " · aufs Haus"}
                       {i.voided && ` · storniert${i.voidReason ? `: ${i.voidReason}` : ""}`}
+                      {!i.voided && i.paidQty > 0 && (
+                        <span className="font-semibold text-emerald-800"> · {i.paidQty === i.qty ? "einzeln bezahlt" : `${i.paidQty} von ${i.qty} einzeln bezahlt`}</span>
+                      )}
                     </span>
                   </span>
                   <span className="font-mono tabular-nums">{i.onHouse ? <s>{eur(i.unitPriceCents * i.qty)}</s> : eur(i.unitPriceCents * i.qty)}</span>

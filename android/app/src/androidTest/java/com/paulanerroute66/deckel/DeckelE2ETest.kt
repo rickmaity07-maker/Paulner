@@ -31,7 +31,17 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class DeckelE2ETest {
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    // Grant the notification permission before the app starts, so its one-time prompt doesn't cover the screen.
+    @get:Rule(order = 0) val notifications = org.junit.rules.TestRule { base, _ ->
+        object : org.junit.runners.model.Statement() {
+            override fun evaluate() {
+                val instrumentation = InstrumentationRegistry.getInstrumentation()
+                instrumentation.uiAutomation.grantRuntimePermission(instrumentation.targetContext.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+                base.evaluate()
+            }
+        }
+    }
+    @get:Rule(order = 1) val rule = createAndroidComposeRule<MainActivity>()
 
     private val run = System.getProperty("e2e.run") ?: RUN_ID
     private val walkIn = "Stammtisch $run"
@@ -224,6 +234,39 @@ class DeckelE2ETest {
         tap("nav-settings")
         tap("settings-lang-de")
         waitText("Übersicht")
+    }
+
+    @Test fun t10_tableOnlyTabSplitByDrinks() {
+        signedIn()
+        // Just a table number: the tab is called "Tisch …".
+        tap("nav-tabs")
+        tap("new-tab")
+        type("newtab-table", run)
+        tap("newtab-open")
+        waitText("Tisch $run")
+        addDrink("drink-Paulaner Pils-0,4 l", 2)
+        addDrink("drink-Paulaner Helles-0,5 l")
+        tap("round-book")
+        balanceIs("11,00")
+        // One guest pays just their Pils.
+        tap("tab-pay")
+        waitTag("pay-dialog")
+        tap("pay-by-true")
+        tap("pick-Paulaner Pils")
+        shot("17-split-pick")
+        tap("pay-confirm")
+        balanceIs("7,50")
+        waitText("1 von 2 bezahlt")
+        shot("18-split-paid")
+        // The next one can only choose what's still open: one Pils, one Helles.
+        tap("tab-pay")
+        tap("pay-by-true")
+        tap("pick-Paulaner Pils")
+        tap("pick-Paulaner Helles")
+        tap("pay-confirm")
+        balanceIs("0,00")
+        tap("tab-close")
+        tap("confirm-ok")
     }
 
     companion object {

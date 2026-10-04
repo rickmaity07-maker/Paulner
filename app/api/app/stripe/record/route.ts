@@ -1,6 +1,6 @@
 import { ApiError, appRoute, body } from "@/lib/app-auth";
 import { db } from "@/lib/db";
-import { addPayment, getTab } from "@/lib/deckel";
+import { addPayment, getTab, unpackItems } from "@/lib/deckel";
 import { stripe } from "@/lib/stripe";
 
 /*
@@ -20,7 +20,13 @@ export const POST = appRoute(async (request, user) => {
   return addPayment(
     user,
     tabId,
-    { method: "tap_to_pay", amountCents: Number(intent.metadata.amount_cents), tipCents: Number(intent.metadata.tip_cents ?? 0), note: "Tap to Pay" },
+    {
+      method: "tap_to_pay",
+      amountCents: Number(intent.metadata.amount_cents),
+      tipCents: Number(intent.metadata.tip_cents ?? 0),
+      note: "Tap to Pay",
+      items: unpackItems(intent.metadata),
+    },
     paymentIntentId,
   );
 });

@@ -11,6 +11,8 @@
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <!-- Online updates: the app installs new versions of itself, downloaded from the website. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- "Update available" in the notification bar, also while the app is closed. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".DeckelApp"

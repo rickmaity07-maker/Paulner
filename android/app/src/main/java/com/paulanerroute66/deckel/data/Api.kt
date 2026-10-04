@@ -118,10 +118,15 @@ class Api(baseUrl: String, private val tokenProvider: () -> String?, client: OkH
     suspend fun setQty(tabId: String, itemId: String, qty: Int): Tab =
         send("PATCH", "/api/app/tabs/$tabId/items/$itemId", buildJsonObject { put("action", "qty"); put("qty", qty) })
 
-    suspend fun pay(tabId: String, amountCents: Int, tipCents: Int, method: PayMethod, note: String = ""): Tab =
+    suspend fun pay(tabId: String, amountCents: Int, tipCents: Int, method: PayMethod, items: List<PaidItem>? = null, note: String = ""): Tab =
         send("POST", "/api/app/tabs/$tabId/payments", buildJsonObject {
             put("amountCents", amountCents); put("tipCents", tipCents); put("method", method.wire); put("note", note)
+            items?.let { put("items", itemsJson(it)) }
         })
+
+    private fun itemsJson(items: List<PaidItem>) = kotlinx.serialization.json.buildJsonArray {
+        items.forEach { i -> add(buildJsonObject { put("itemId", i.itemId); put("qty", i.qty) }) }
+    }
 
     suspend fun refund(paymentId: String): JsonObject = send("POST", "/api/app/payments/$paymentId/refund")
 
@@ -164,8 +169,11 @@ class Api(baseUrl: String, private val tokenProvider: () -> String?, client: OkH
 
     suspend fun stripeToken(): StripeToken = send("POST", "/api/app/stripe/connection-token")
 
-    suspend fun stripeIntent(tabId: String, amountCents: Int, tipCents: Int): StripeIntent =
-        send("POST", "/api/app/stripe/payment-intent", buildJsonObject { put("tabId", tabId); put("amountCents", amountCents); put("tipCents", tipCents) })
+    suspend fun stripeIntent(tabId: String, amountCents: Int, tipCents: Int, items: List<PaidItem>? = null): StripeIntent =
+        send("POST", "/api/app/stripe/payment-intent", buildJsonObject {
+            put("tabId", tabId); put("amountCents", amountCents); put("tipCents", tipCents)
+            items?.let { put("items", itemsJson(it)) }
+        })
 
     suspend fun stripeRecord(paymentIntentId: String): Tab =
         send("POST", "/api/app/stripe/record", buildJsonObject { put("paymentIntentId", paymentIntentId) })
