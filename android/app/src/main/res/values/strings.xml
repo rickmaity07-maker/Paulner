@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Everything else the app says lives in Strings.kt, in German and English, like the website's i18n. -->
+    <string name="app_name">Route 66 Deckel</string>
+</resources>

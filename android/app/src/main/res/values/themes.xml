@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="asphalt">#FF171415</color>
+    <color name="cream">#FFF3E7DA</color>
+    <color name="crimson">#FFB3203A</color>
+
+    <!-- Splash: the shield on asphalt, then straight into the app. -->
+    <style name="Theme.Deckel.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/asphalt</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Deckel</item>
+    </style>
+
+    <style name="Theme.Deckel" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/cream</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

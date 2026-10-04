@@ -11,7 +11,7 @@ const scryptAsync = promisify(scrypt) as (password: string, salt: string, length
 export const SESSION_COOKIE = "r66_session";
 const SESSION_MAX_AGE_S = 60 * 60 * 24 * 5;
 
-export type Role = "user" | "owner";
+export type Role = "user" | "staff" | "owner";
 
 export interface SessionUser {
   id: string;

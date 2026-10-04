@@ -7,7 +7,7 @@ export interface Account {
   email: string;
   name: string;
   phone: string;
-  role: "user" | "owner";
+  role: "user" | "staff" | "owner";
 }
 
 /*

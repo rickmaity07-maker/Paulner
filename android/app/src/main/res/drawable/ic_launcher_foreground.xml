@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Route 66 shield from the website (100 x 110 units), fitted into the adaptive icon's safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.6"
+        android:scaleY="0.6"
+        android:translateX="24"
+        android:translateY="21">
+        <path
+            android:fillColor="#F6EFE6"
+            android:strokeColor="#171415"
+            android:strokeWidth="5"
+            android:strokeLineJoin="round"
+            android:pathData="M8,6h84c0,7 -3,12 -8,15l7,15c6,34 -13,55 -41,68C22,91 3,70 9,36l7,-15C11,18 8,13 8,6z" />
+        <path
+            android:fillColor="#B3203A"
+            android:pathData="M15,12h70c-1,4 -3,7 -6,9H21c-3,-2 -5,-5 -6,-9z" />
+        <!-- "66" -->
+        <path
+            android:fillColor="#171415"
+            android:pathData="M38,48c-8,0 -13,7 -13,17c0,10 5,17 12,17c7,0 12,-5 12,-12c0,-6 -4,-11 -10,-11c-3,0 -5,1 -6,3c1,-5 3,-8 7,-8c2,0 4,1 5,3l3,-4c-2,-3 -5,-5 -10,-5zM37,63c3,0 5,3 5,7c0,4 -2,7 -5,7c-3,0 -5,-3 -5,-7c0,-4 2,-7 5,-7z" />
+        <path
+            android:fillColor="#171415"
+            android:pathData="M64,48c-8,0 -13,7 -13,17c0,10 5,17 12,17c7,0 12,-5 12,-12c0,-6 -4,-11 -10,-11c-3,0 -5,1 -6,3c1,-5 3,-8 7,-8c2,0 4,1 5,3l3,-4c-2,-3 -5,-5 -10,-5zM63,63c3,0 5,3 5,7c0,4 -2,7 -5,7c-3,0 -5,-3 -5,-7c0,-4 2,-7 5,-7z" />
+        <path
+            android:fillColor="#171415"
+            android:pathData="M33,28h34v5H33z" />
+    </group>
+</vector>

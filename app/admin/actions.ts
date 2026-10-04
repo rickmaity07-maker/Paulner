@@ -317,7 +317,7 @@ export async function createUser(input: { email: string; name: string; password:
     const email = str(input.email, 160, "E-Mail", { required: true }).toLowerCase();
     if (!EMAIL.test(email)) throw new InputError("Bitte eine gültige E-Mail-Adresse angeben.");
     if (String(input.password ?? "").length < 8) throw new InputError("Passwörter brauchen mindestens 8 Zeichen.");
-    const role = input.role === "owner" ? "owner" : "user";
+    const role = input.role === "owner" || input.role === "staff" ? input.role : "user";
     const rows = (await db()`
       insert into users (email, name, password_hash, role)
       values (${email}, ${str(input.name, 120, "Name")}, ${await hashPassword(input.password)}, ${role})
@@ -325,23 +325,27 @@ export async function createUser(input: { email: string; name: string; password:
       returning id
     `) as { id: string }[];
     if (!rows[0]) throw new InputError("Für diese E-Mail gibt es schon ein Konto.");
-    await logActivity(me, "Konto angelegt", "user", rows[0].id, `${email} (${role === "owner" ? "Inhaber" : "Nutzer"})`);
+    await logActivity(me, "Konto angelegt", "user", rows[0].id, `${email} (${ROLE_DE[role]})`);
     return "Konto angelegt. Gebt das Passwort persönlich weiter.";
   });
 }
 
+const ROLE_DE = { owner: "Inhaber", staff: "Personal", user: "Gast" } as const;
+
 export async function setUserRole(id: string, role: string) {
   return run(async (me) => {
-    const next = role === "owner" ? "owner" : "user";
+    const next = role === "owner" || role === "staff" ? role : "user";
     if (id === me.id && next !== "owner") throw new InputError("Das eigene Konto kann sich nicht selbst herabstufen.");
-    if (next === "user" && (await activeOwnerCount()) <= 1) {
+    if (next !== "owner" && (await activeOwnerCount()) <= 1) {
       const target = (await db()`select role from users where id = ${id}`) as { role: string }[];
       if (target[0]?.role === "owner") throw new InputError("Es muss immer mindestens einen aktiven Inhaber geben.");
     }
     const rows = (await db()`update users set role = ${next} where id = ${id} returning email`) as { email: string }[];
     if (!rows[0]) throw new InputError("Dieses Konto gibt es nicht mehr.");
-    await logActivity(me, "Rolle geändert", "user", id, `${rows[0].email} → ${next === "owner" ? "Inhaber" : "Nutzer"}`);
-    return next === "owner" ? `${rows[0].email} ist jetzt Inhaber.` : `${rows[0].email} ist jetzt Nutzer.`;
+    await logActivity(me, "Rolle geändert", "user", id, `${rows[0].email} → ${ROLE_DE[next]}`);
+    // Signing a demoted account out of the tablet app straight away.
+    if (next === "user") await db()`delete from sessions where user_id = ${id}`;
+    return `${rows[0].email} ist jetzt ${ROLE_DE[next]}.`;
   });
 }
 

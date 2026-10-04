@@ -3,20 +3,26 @@
 import { useMemo, useState } from "react";
 import { GoogleLogo, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { createUser, resetPassword, setUserActive, setUserRole } from "@/app/admin/actions";
-import { Button, Card, ConfirmButton, Field, Input, PageHeader, Select, useAction } from "@/components/admin/ui";
+import { Button, Card, Field, Input, PageHeader, Select, useAction } from "@/components/admin/ui";
 
 export interface UserRow {
   id: string;
   email: string;
   name: string;
   phone: string;
-  role: "user" | "owner";
+  role: "user" | "staff" | "owner";
   active: boolean;
   google: boolean;
   created_at: string;
   last_login_at: string | null;
   bookings: number;
 }
+
+const ROLES = {
+  user: { label: "Gast", badge: "bg-bone/10", hint: "Reserviert über die Website, kein Zugriff auf Verwaltung oder Tablet-App." },
+  staff: { label: "Personal", badge: "bg-route text-chrome", hint: "Darf die Deckel-App auf dem Tablet benutzen, aber nicht die Verwaltung." },
+  owner: { label: "Inhaber", badge: "bg-amber text-chrome", hint: "Voller Zugriff auf Verwaltung und Tablet-App." },
+} as const;
 
 const stamp = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Berlin" }) : "nie";
@@ -36,9 +42,7 @@ function UserCard({ user, self }: { user: UserRow; self: boolean }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${user.role === "owner" ? "bg-amber text-chrome" : "bg-bone/10"}`}>
-            {user.role === "owner" ? "Inhaber" : "Nutzer"}
-          </span>
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${ROLES[user.role].badge}`}>{ROLES[user.role].label}</span>
           {user.google && (
             <span className="inline-flex items-center gap-1 rounded-full bg-route/10 px-3 py-1 text-xs font-semibold text-route">
               <GoogleLogo size={12} weight="bold" /> Google
@@ -52,15 +56,24 @@ function UserCard({ user, self }: { user: UserRow; self: boolean }) {
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-bone/[0.06] pt-5">
         {!self && (
           <>
-            {user.role === "owner" ? (
-              <ConfirmButton prompt="Zugriff entziehen?" busy={pending} onConfirm={() => run(() => setUserRole(user.id, "user"))}>
-                Zum Nutzer herabstufen
-              </ConfirmButton>
-            ) : (
-              <Button size="sm" variant="dark" busy={pending} onClick={() => window.confirm(`${user.email} zum Inhaber machen? Das Konto erhält vollen Zugriff.`) && run(() => setUserRole(user.id, "owner"))}>
-                Zum Inhaber machen
-              </Button>
-            )}
+            <span role="group" aria-label={`Rolle von ${user.email}`} className="inline-flex rounded-full bg-night p-1">
+              {(["user", "staff", "owner"] as const).map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  aria-pressed={user.role === role}
+                  disabled={pending || user.role === role}
+                  title={ROLES[role].hint}
+                  onClick={() => {
+                    if (role === "owner" && !window.confirm(`${user.email} zum Inhaber machen? Das Konto erhält vollen Zugriff.`)) return;
+                    run(() => setUserRole(user.id, role));
+                  }}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${user.role === role ? "bg-asphalt text-chrome" : "text-sage hover:text-bone"}`}
+                >
+                  {ROLES[role].label}
+                </button>
+              ))}
+            </span>
             <Button size="sm" variant={user.active ? "danger" : "secondary"} busy={pending} onClick={() => run(() => setUserActive(user.id, !user.active))}>
               {user.active ? "Deaktivieren" : "Aktivieren"}
             </Button>
@@ -107,7 +120,7 @@ export default function UsersManager({ users, meId }: { users: UserRow[]; meId: 
     <>
       <PageHeader
         title="Nutzer & Rollen"
-        description={`${users.length} Konten, davon ${owners} ${owners === 1 ? "Inhaber" : "Inhaber"}. Alle melden sich auf derselben Seite an (/login). Gäste brauchen ein Konto zum Reservieren; nur Inhaber sehen die Verwaltung.`}
+        description={`${users.length} Konten, davon ${owners} ${owners === 1 ? "Inhaber" : "Inhaber"}. Alle melden sich auf derselben Seite an (/login). Gäste brauchen ein Konto zum Reservieren. „Personal“ darf die Deckel-App auf dem Tablet benutzen, nur Inhaber sehen die Verwaltung.`}
       />
       <label className="relative mb-4 block max-w-sm">
         <span className="sr-only">Suchen</span>
@@ -136,7 +149,8 @@ export default function UsersManager({ users, meId }: { users: UserRow[]; meId: 
           <Field label="Rolle">
             {(id) => (
               <Select id={id} value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
-                <option value="user">Nutzer (kein Zugriff auf die Verwaltung)</option>
+                <option value="user">Gast (nur reservieren)</option>
+                <option value="staff">Personal (Deckel-App auf dem Tablet)</option>
                 <option value="owner">Inhaber (voller Zugriff)</option>
               </Select>
             )}
