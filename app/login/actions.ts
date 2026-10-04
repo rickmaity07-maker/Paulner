@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
-import { createSession, destroySession, getSession, hashPassword, safeNext, verifyPassword } from "@/lib/auth";
+import { createSession, destroySession, getSession, hashPassword, safeNext, verifyPasswordOrDummy } from "@/lib/auth";
 import { db, hasDatabase } from "@/lib/db";
 
 export type LoginError = "credentials" | "emailInUse" | "email" | "password" | "tooMany" | "unavailable";
@@ -62,7 +62,7 @@ export async function authenticate(_previous: LoginState, form: FormData): Promi
       select id, email, password_hash, role, active from users where email = ${email}
     `) as UserRow[];
     const candidate = rows[0];
-    const valid = candidate ? await verifyPassword(password, candidate.password_hash) : false;
+    const valid = await verifyPasswordOrDummy(password, candidate?.password_hash);
     if (!candidate || !valid || !candidate.active) {
       await sql`insert into login_attempts (email) values (${email})`;
       return { error: "credentials", email };

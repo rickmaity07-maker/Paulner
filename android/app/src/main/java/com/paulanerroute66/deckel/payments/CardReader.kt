@@ -106,6 +106,9 @@ class CardReader(private val context: Context, private val api: Api) {
             ensureInitialized()
             Terminal.getInstance().connectedReader?.let { disconnectQuietly() }
             if (locationId == null) locationId = api.stripeToken().location
+            // Stripe needs the location to discover a reader; without it, say so instead of failing somewhere inside.
+            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                throw ApiException("location_permission", 0)
             val reader = discoverFirst(mode)
             val connected = connectTo(reader, mode)
             _state.value = ReaderState.Connected(connected.label ?: connected.serialNumber ?: "Reader", mode == ReaderMode.Simulator)
@@ -118,6 +121,7 @@ class CardReader(private val context: Context, private val api: Api) {
         }
     }
 
+    @android.annotation.SuppressLint("MissingPermission") // checked in connect() before every discovery
     private suspend fun discoverFirst(mode: ReaderMode): Reader = suspendCancellableCoroutine { cont ->
         val config: DiscoveryConfiguration = when (mode) {
             ReaderMode.TapToPay -> DiscoveryConfiguration.TapToPayDiscoveryConfiguration(isSimulated = false)

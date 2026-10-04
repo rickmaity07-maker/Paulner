@@ -53,7 +53,7 @@ export default function Drinks({ menu }: { menu: MenuCategory[] }) {
         <div
           role="tablist"
           aria-label={t.drinks.sections}
-          className="flex flex-wrap items-baseline gap-x-8 gap-y-2 border-b border-bone/15 pb-6 md:gap-x-12"
+          className="no-scrollbar -mx-4 flex items-baseline [mask-image:linear-gradient(to_right,black_82%,transparent)] md:[mask-image:none] gap-x-8 gap-y-2 overflow-x-auto border-b border-bone/15 px-4 pb-5 md:mx-0 md:flex-wrap md:gap-x-12 md:overflow-visible md:px-0 md:pb-6"
         >
           {menu.map((entry) => {
             const selected = entry.id === tab;
@@ -66,7 +66,7 @@ export default function Drinks({ menu }: { menu: MenuCategory[] }) {
                 aria-selected={selected}
                 aria-controls="drinks-panel"
                 onClick={() => setTab(entry.id)}
-                className={`relative flex flex-col items-start text-left transition-colors duration-500 ease-leaf ${
+                className={`relative flex shrink-0 flex-col items-start text-left transition-colors duration-500 ease-leaf ${
                   selected ? "text-bone" : "text-bone/30 hover:text-bone/60"
                 }`}
               >
@@ -76,7 +76,7 @@ export default function Drinks({ menu }: { menu: MenuCategory[] }) {
                   <motion.span
                     layoutId="tab-underline"
                     transition={{ type: "spring", stiffness: 380, damping: 34 }}
-                    className="absolute -bottom-[25px] left-0 right-0 h-[3px] rounded-full bg-amber"
+                    className="absolute -bottom-2.5 left-0 right-0 h-[3px] rounded-full bg-amber md:-bottom-[25px]"
                   />
                 )}
               </button>

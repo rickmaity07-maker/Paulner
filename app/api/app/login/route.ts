@@ -1,6 +1,6 @@
 import { logActivity } from "@/lib/activity";
 import { createAppToken } from "@/lib/app-auth";
-import { verifyPassword } from "@/lib/auth";
+import { verifyPasswordOrDummy } from "@/lib/auth";
 import { db, hasDatabase } from "@/lib/db";
 
 const MAX_FAILURES = 8;
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     active: boolean;
     password_hash: string;
   }[];
-  const valid = user && user.password_hash ? await verifyPassword(password, user.password_hash) : false;
+  const valid = await verifyPasswordOrDummy(password, user?.password_hash);
   if (!user || !valid || !user.active) {
     await sql`insert into login_attempts (email) values (${email})`;
     return Response.json({ code: "credentials" }, { status: 401 });

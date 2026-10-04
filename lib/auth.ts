@@ -28,6 +28,15 @@ export async function hashPassword(password: string) {
   return `scrypt$${salt}$${hash.toString("hex")}`;
 }
 
+/*
+  For logins with an unknown email: run the same scrypt work against a throwaway
+  hash, so the answer takes as long as for a real account and timing can't tell
+  which addresses are registered.
+*/
+const DUMMY_HASH = `scrypt$${"0".repeat(32)}$${"0".repeat(128)}`;
+export const verifyPasswordOrDummy = async (password: string, stored: string | null | undefined) =>
+  verifyPassword(password, stored || DUMMY_HASH).then((ok) => ok && Boolean(stored));
+
 export async function verifyPassword(password: string, stored: string) {
   const [scheme, salt, hash] = stored.split("$");
   if (scheme !== "scrypt" || !salt || !hash) return false;

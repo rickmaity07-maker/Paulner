@@ -2,7 +2,7 @@ import { after } from "next/server";
 import { logActivity } from "@/lib/activity";
 import { getSession } from "@/lib/auth";
 import { validateBooking, type BookingRequest } from "@/lib/booking";
-import { hasDatabase } from "@/lib/db";
+import { db, hasDatabase } from "@/lib/db";
 import { notifyGuest, notifyNewReservation } from "@/lib/mailer";
 import { addBooking, getSite } from "@/lib/store";
 
@@ -22,6 +22,14 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ code: "invalid" }, { status: 400 });
   }
+
+  // Each request emails the bar, so one account can't flood it: 3 open requests, 10 a day.
+  const [{ open, today }] = (await db()`
+    select count(*) filter (where status = 'pending' and date >= (now() at time zone 'Europe/Berlin')::date)::int as open,
+           count(*) filter (where created_at > now() - interval '1 day')::int as today
+    from reservations where user_id = ${me.id}
+  `) as { open: number; today: number }[];
+  if (open >= 3 || today >= 10) return Response.json({ code: "tooMany" }, { status: 429 });
 
   const site = await getSite();
   if (!site.booking.enabled) return Response.json({ code: "paused" }, { status: 403 });

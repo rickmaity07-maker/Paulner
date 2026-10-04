@@ -471,14 +471,36 @@ export async function addPayment(user: AppUser, tabId: string, input: Record<str
   const sql = db();
   const paymentId = randomUUID();
   const note = text(input.note, 120, "note") || (split ? "Getrennt" : "");
-  await sql.transaction([
-    sql`
-      insert into payments (id, tab_id, customer_id, amount_cents, tip_cents, method, stripe_payment_intent, taken_by, note)
-      values (${paymentId}, ${tabId}, ${tab.customer_id}, ${amount}, ${tip}, ${method}, ${stripeIntent}, ${user.id}, ${note})
-    `,
-    ...(split?.lines ?? []).map((l) => sql`insert into payment_items (payment_id, item_id, qty) values (${paymentId}, ${l.itemId}, ${l.qty})`),
-    sql`update tabs set updated_at = now() where id = ${tabId}`,
-  ]);
+  /*
+    Two devices may take payment for the same tab in the same second. The tab row
+    is locked for the transaction, and the last statement re-checks with what is
+    committed by then: more paid than owed, or a drink paid twice, divides by
+    zero and rolls the whole payment back.
+  */
+  try {
+    await sql.transaction([
+      sql`select id from tabs where id = ${tabId} for update`,
+      sql`
+        insert into payments (id, tab_id, customer_id, amount_cents, tip_cents, method, stripe_payment_intent, taken_by, note)
+        values (${paymentId}, ${tabId}, ${tab.customer_id}, ${amount}, ${tip}, ${method}, ${stripeIntent}, ${user.id}, ${note})
+      `,
+      ...(split?.lines ?? []).map((l) => sql`insert into payment_items (payment_id, item_id, qty) values (${paymentId}, ${l.itemId}, ${l.qty})`),
+      sql`
+        select 1 / (case when
+          (select coalesce(sum(amount_cents), 0) from payments where tab_id = ${tabId} and refunded_at is null)
+            > (select coalesce(sum(case when on_house then 0 else unit_price_cents * qty end), 0) from tab_items where tab_id = ${tabId} and voided_at is null)
+          or exists (
+            select 1 from tab_items i where i.tab_id = ${tabId} and i.qty < (
+              select coalesce(sum(pi.qty), 0) from payment_items pi join payments p on p.id = pi.payment_id
+              where pi.item_id = i.id and p.refunded_at is null))
+        then 0 else 1 end) as ok
+      `,
+      sql`update tabs set updated_at = now() where id = ${tabId}`,
+    ]);
+  } catch (error) {
+    if (String((error as Error)?.message).includes("division by zero")) throw new ApiError(409, "payment_conflict");
+    throw error;
+  }
   const paidFor = split
     ? ` für ${split.lines.map((l) => `${l.qty}× ${current.items.find((i) => i.id === l.itemId)?.name}`).join(", ")}`
     : "";

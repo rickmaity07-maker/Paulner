@@ -25,9 +25,10 @@ const ROADS = {
     box: [1600, 900] as const,
     d: "M -80 640 C 180 640 260 300 520 300 S 820 640 1060 600 S 1300 250 1680 260",
   },
+  // Phones: the road comes in from the left below the heading, so the two never overlap.
   tall: {
     box: [900, 1600] as const,
-    d: "M 260 -80 C 260 220 700 260 680 520 S 180 760 220 1020 S 720 1260 640 1680",
+    d: "M -80 560 C 280 540 720 600 680 820 S 200 1010 240 1210 S 720 1390 640 1680",
   },
 };
 
@@ -72,10 +73,11 @@ function Car() {
   );
 }
 
-function Sign({ stop, point, progress, reduce }: { stop: Stop; point: { x: number; y: number; nx: number; ny: number }; progress: MotionValue<number>; reduce: boolean }) {
+function Sign({ stop, point, progress, reduce, bounds }: { stop: Stop; point: { x: number; y: number; nx: number; ny: number }; progress: MotionValue<number>; reduce: boolean; bounds: [number, number] }) {
   const shown = useTransform(progress, [stop.at - 0.06, stop.at], [0, 1], { clamp: true });
   const scale = useSpring(useTransform(shown, [0, 1], [0.3, 1]), { stiffness: 260, damping: 16 });
-  const x = point.x + point.nx * 150 * stop.side;
+  // Kept inside the part of the drawing the screen actually shows (phones crop the sides).
+  const x = Math.min(bounds[1], Math.max(bounds[0], point.x + point.nx * 150 * stop.side));
   const y = point.y + point.ny * 150 * stop.side;
   return (
     <g transform={`translate(${x} ${y})`}>
@@ -205,7 +207,9 @@ export default function RoadTrip({ facts }: { facts: RoadFacts }) {
           <path d={road.d} fill="none" stroke="#e8a33a" strokeWidth="6" strokeDasharray="34 26" mask="url(#line-mask)" />
 
           {points.length === stops.length &&
-            stops.map((stop, index) => <Sign key={index} stop={stop} point={points[index]} progress={progress} reduce={reduce} />)}
+            stops.map((stop, index) => (
+              <Sign key={index} stop={stop} point={points[index]} progress={progress} reduce={reduce} bounds={portrait ? [205, 695] : [130, 1470]} />
+            ))}
 
           <g ref={carRef}>
             <Car />

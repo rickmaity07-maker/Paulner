@@ -112,7 +112,7 @@ export default function Taps({ taps }: { taps: Tap[] }) {
                 <h3 className="display mt-1 text-3xl text-bone md:text-5xl">{tap.name}</h3>
                 <p className="mt-2 inline-block rounded-full bg-bone px-3 py-1 font-mono text-xs text-chrome">{tap.pour}</p>
                 <p className="mt-3 max-w-[36ch] text-base leading-relaxed text-bone/80">{pick(locale, tap.body, tap.bodyEn)}</p>
-                <a href="#drinks" className="group mt-3 inline-flex items-center gap-2 text-sm font-medium text-amber">
+                <a href="#drinks" className="group mt-1 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-amber">
                   {t.taps.menu}
                   <ArrowRight size={16} className="transition-transform duration-500 ease-leaf group-hover:translate-x-1" />
                 </a>

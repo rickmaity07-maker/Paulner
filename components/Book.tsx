@@ -168,7 +168,7 @@ export default function Book({ rules, street }: { rules: BookingRules; street: s
       const data = await response.json();
       if (!response.ok) {
         if (data.errors) setErrors(data.errors);
-        const message = data.code === "paused" ? t.book.errors.paused : data.code === "signIn" ? t.book.errors.signIn : t.book.failed;
+        const message = data.code === "paused" ? t.book.errors.paused : data.code === "tooMany" ? t.book.errors.tooManyRequests : data.code === "signIn" ? t.book.errors.signIn : t.book.failed;
         setStatus({ kind: "failed", message });
         return;
       }

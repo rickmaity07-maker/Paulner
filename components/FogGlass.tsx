@@ -367,6 +367,18 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
     const onLeave = () => {
       last = null;
     };
+    // Phones: pointer events stop once the page starts scrolling, touch events keep coming,
+    // so a finger sliding over the glass keeps wiping it while the page scrolls as usual.
+    const onTouch = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      const rect = wrap.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      if (y < 0 || y > h) return;
+      wipe(x, y);
+      setTouched(true);
+    };
 
     let lastSize = { w: 0, h: 0 };
     const resize = new ResizeObserver(() => {
@@ -410,6 +422,9 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
         host.addEventListener("pointerdown", onMove);
         host.addEventListener("pointerleave", onLeave);
         host.addEventListener("pointerup", onLeave);
+        host.addEventListener("pointercancel", onLeave);
+        host.addEventListener("touchmove", onTouch, { passive: true });
+        host.addEventListener("touchend", onLeave, { passive: true });
       });
 
     return () => {
@@ -421,6 +436,9 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
       host.removeEventListener("pointerdown", onMove);
       host.removeEventListener("pointerleave", onLeave);
       host.removeEventListener("pointerup", onLeave);
+      host.removeEventListener("pointercancel", onLeave);
+      host.removeEventListener("touchmove", onTouch);
+      host.removeEventListener("touchend", onLeave);
     };
   }, [word, layout]);
 

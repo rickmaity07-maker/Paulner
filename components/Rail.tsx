@@ -71,7 +71,25 @@ function AccountLink({ className, iconSize }: { className: string; iconSize: num
   Phones: the same links in a floating dock at the bottom of the screen, and
   the language switch pinned top right.
 */
+/* Phones: the floating DE/EN switch steps aside while you scroll down and comes back when you scroll up. */
+function useHideOnScrollDown() {
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - last) < 8) return;
+      setHidden(y > last && y > 160);
+      last = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  return hidden;
+}
+
 export default function Rail({ bookingEnabled }: { bookingEnabled: boolean }) {
+  const toggleHidden = useHideOnScrollDown();
   useHtmlLang();
   const { t } = useLanguage();
   const active = useActiveSection();
@@ -141,7 +159,11 @@ export default function Rail({ bookingEnabled }: { bookingEnabled: boolean }) {
         )}
       </nav>
 
-      <div className="fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-40 flex items-center gap-2 lg:hidden">
+      <div
+        className={`fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-40 flex items-center gap-2 transition-[transform,opacity] duration-300 lg:hidden ${
+          toggleHidden ? "pointer-events-none -translate-y-16 opacity-0" : ""
+        }`}
+      >
         <LanguageToggle tone="dark" />
       </div>
 
