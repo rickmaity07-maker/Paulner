@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import {
+  AddressBook,
   BeerStein,
+  CashRegister,
   CalendarCheck,
   DeviceTablet,
   ChartPieSlice,
@@ -19,6 +21,8 @@ import {
 
 const LINKS: { href: string; label: string; Icon: Icon }[] = [
   { href: "/admin", label: "Übersicht", Icon: ChartPieSlice },
+  { href: "/admin/kasse", label: "Live-Kasse", Icon: CashRegister },
+  { href: "/admin/gaeste", label: "Gäste & Schulden", Icon: AddressBook },
   { href: "/admin/bookings", label: "Reservierungen", Icon: CalendarCheck },
   { href: "/admin/menu", label: "Getränkekarte", Icon: Wine },
   { href: "/admin/taps", label: "Vom Fass", Icon: BeerStein },

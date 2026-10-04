@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { ArrowRight, CalendarBlank, Clock, Fire, Users, Wine } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, CalendarBlank, CashRegister, Clock, Fire, Users, Wine } from "@phosphor-icons/react/dist/ssr";
 import BarChart, { type BarDatum } from "@/components/admin/BarChart";
 import { PendingList, QuickToggles, TodayList } from "@/components/admin/DashboardControls";
+import LiveRefresh from "@/components/admin/LiveRefresh";
 import { Card } from "@/components/admin/ui";
 import { requireOwner } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { listTabs, stats } from "@/lib/deckel";
+import { eur } from "@/lib/deckel-format";
 import { berlinNow, describeStatus, openStatus } from "@/lib/hours";
 import { content } from "@/lib/i18n";
 import { getActivity, getBookings, getSite } from "@/lib/store";
@@ -42,14 +45,16 @@ function Stat({ label, value, sub, Icon }: { label: string; value: string | numb
 
 export default async function Dashboard() {
   const me = await requireOwner();
-  const [site, bookings, activity, [{ accounts }]] = await Promise.all([
+  const { date: today } = berlinNow();
+  const [site, bookings, activity, [{ accounts }], bar, openTabs] = await Promise.all([
     getSite(),
     getBookings(),
     getActivity(8),
     db()`select count(*)::int as accounts from users where active`.then((rows) => rows as { accounts: number }[]),
+    stats(today, today),
+    listTabs({ status: "open" }),
   ]);
 
-  const { date: today } = berlinNow();
   const live = bookings.filter((b) => LIVE.includes(b.status));
   const todays = live.filter((b) => b.date === today).sort((a, b) => a.time.localeCompare(b.time));
   const covers = todays.reduce((n, b) => n + b.guests, 0);
@@ -98,10 +103,40 @@ export default async function Dashboard() {
             {me.name ? `, ${me.name.split(" ")[0]}` : ""}.
           </h1>
         </div>
-        <Link href="/admin/bookings" className="inline-flex items-center gap-2 text-sm font-medium text-amber">
-          Alle Reservierungen <ArrowRight size={16} />
-        </Link>
+        <div className="flex flex-wrap items-center gap-4">
+          <LiveRefresh seconds={15} />
+          <Link href="/admin/bookings" className="inline-flex items-center gap-2 text-sm font-medium text-amber">
+            Alle Reservierungen <ArrowRight size={16} />
+          </Link>
+        </div>
       </header>
+
+      {/* What the tablets and phones are doing right now. */}
+      <Link
+        href="/admin/kasse"
+        className="group mb-4 flex flex-col gap-4 rounded-3xl bg-asphalt p-5 text-chrome transition-transform active:scale-[0.995] md:flex-row md:items-center md:p-6"
+      >
+        <span className="flex items-center gap-3">
+          <CashRegister size={28} weight="duotone" className="text-neon" aria-hidden="true" />
+          <span className="display text-2xl">Bar heute</span>
+        </span>
+        <span className="grid flex-1 grid-cols-2 gap-4 md:grid-cols-4">
+          {[
+            ["Umsatz", eur(bar.revenueCents)],
+            ["Offene Deckel", `${openTabs.length} · ${eur(openTabs.reduce((n, t) => n + t.balanceCents, 0))}`],
+            ["Trinkgeld", eur(bar.tipsCents)],
+            ["Angeschrieben", eur(bar.debts.balanceCents)],
+          ].map(([label, value]) => (
+            <span key={label}>
+              <span className="label block text-[10px] text-chrome/50">{label}</span>
+              <span className="mt-1 block font-mono text-lg font-semibold tabular-nums">{value}</span>
+            </span>
+          ))}
+        </span>
+        <span className="inline-flex items-center gap-2 text-sm font-medium text-neon">
+          Live-Kasse <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+        </span>
+      </Link>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Heute" value={covers} sub={`${covers === 1 ? "Gast" : "Gäste"} an ${todays.length} ${todays.length === 1 ? "Tisch" : "Tischen"}`} Icon={Users} />

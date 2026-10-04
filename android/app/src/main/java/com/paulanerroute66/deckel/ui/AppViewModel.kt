@@ -208,7 +208,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         val detail = selectedId?.let { id -> if (tabs.any { it.id == id }) api.tab(id) else null }
                         _state.update { s -> s.copy(openTabs = tabs, offline = false, selectedTab = if (s.selectedTabId == selectedId && detail != null) detail else s.selectedTab) }
                     }
-                    if (tick % 50 == 0) api.bootstrap().let { menu -> _state.update { it.copy(menu = menu) } }
+                    // The menu every 30 seconds, so price changes and sold-out drinks from the website arrive quickly.
+                    if (tick % 5 == 0) api.bootstrap().let { menu -> _state.update { it.copy(menu = menu) } }
                 } catch (e: ApiException) {
                     if (e.code == "offline") _state.update { it.copy(offline = true) } else if (e.code == "unauthorized") signOut(silent = true)
                 }

@@ -245,6 +245,26 @@ const toPayment = (p: Record<string, unknown>): Payment => ({
   note: (p.note as string) ?? "",
 });
 
+/* Every payment taken on one day (Berlin time), newest first, with the tab and guest it belongs to. For the admin portal. */
+export async function paymentsOn(date: string) {
+  const rows = (await db()`
+    select p.id, p.tab_id, p.amount_cents, p.tip_cents, p.method, p.taken_at, coalesce(u.name, u.email, '') as taken_by, p.refunded_at, p.note,
+           t.number as tab_number, t.label as tab_label, c.name as customer_name
+    from payments p
+    left join users u on u.id = p.taken_by
+    left join tabs t on t.id = p.tab_id
+    left join customers c on c.id = coalesce(p.customer_id, t.customer_id)
+    where (p.taken_at at time zone 'Europe/Berlin')::date = ${date}::date
+    order by p.taken_at desc limit 500
+  `) as Record<string, unknown>[];
+  return rows.map((r) => ({
+    ...toPayment(r),
+    tabNumber: (r.tab_number as number | null) ?? null,
+    tabLabel: (r.tab_label as string | null) ?? null,
+    customerName: (r.customer_name as string | null) ?? null,
+  }));
+}
+
 /* ---------- Tabs ---------- */
 
 export async function openTab(user: AppUser, input: Record<string, unknown>) {
