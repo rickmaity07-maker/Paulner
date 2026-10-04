@@ -200,7 +200,9 @@ private fun TabList(state: UiState, vm: AppViewModel, onNew: () -> Unit, modifie
     Column(modifier.background(Route66.Paper.copy(alpha = 0.5f)).padding(if (LocalCompact.current) 14.dp else 18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Eyebrow(strings.tabs.open)
+                // Today's date beside the heading, e.g. "Offene Deckel · Mo. 5. Okt."
+                val today = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEE d. MMM", java.util.Locale.forLanguageTag(strings.code)))
+                Eyebrow("${strings.tabs.open} · $today")
                 Text("${state.openTabs.size}", fontFamily = Rye, fontSize = 34.sp, color = Route66.Ink)
             }
             PillButton(strings.tabs.newTab, onNew, icon = Icons.Rounded.Add, testTag = "new-tab")

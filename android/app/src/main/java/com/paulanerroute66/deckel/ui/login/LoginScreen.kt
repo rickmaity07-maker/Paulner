@@ -134,7 +134,7 @@ fun LoginScreen(state: UiState, onLogin: (String, String) -> Unit, onLanguage: (
                         testTag = "login-submit",
                     )
                     Spacer(Modifier.height(18.dp))
-                    Text("${strings.login.server}: ${BuildConfig.API_URL.removePrefix("https://")}", style = MaterialTheme.typography.bodySmall, color = Route66.Chrome.copy(alpha = 0.4f))
+                    Text("${strings.login.server}: ${BuildConfig.API_URL.removePrefix("https://")} · Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = Route66.Chrome.copy(alpha = 0.4f))
                 }
             }
         }
