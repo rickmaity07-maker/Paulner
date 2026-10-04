@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -54,6 +55,8 @@ import com.paulanerroute66.deckel.ui.AppViewModel
 import com.paulanerroute66.deckel.ui.GuestFilter
 import com.paulanerroute66.deckel.ui.UiState
 import com.paulanerroute66.deckel.ui.components.Avatar
+import com.paulanerroute66.deckel.ui.components.BackBar
+import com.paulanerroute66.deckel.ui.components.LocalCompact
 import com.paulanerroute66.deckel.ui.components.Badge
 import com.paulanerroute66.deckel.ui.components.ButtonKind
 import com.paulanerroute66.deckel.ui.components.Card
@@ -81,8 +84,9 @@ fun GuestsScreen(state: UiState, vm: AppViewModel) {
     var settling by remember { mutableStateOf<Customer?>(null) }
     LaunchedEffect(Unit) { vm.searchGuests(state.guestQuery) }
 
-    Row(Modifier.fillMaxSize()) {
-        Column(Modifier.weight(0.36f).fillMaxHeight().background(Route66.Paper.copy(alpha = 0.5f)).padding(18.dp)) {
+    val guest = state.selectedGuest
+    val profile: @Composable () -> Unit = { if (guest != null) GuestProfile(state, guest, vm, onEdit = { editing = guest }, onSettle = { settling = guest }) }
+    val list: @Composable (Modifier) -> Unit = { modifier -> Column(modifier.background(Route66.Paper.copy(alpha = 0.5f)).padding(if (LocalCompact.current) 14.dp else 18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(strings.guests.title, style = MaterialTheme.typography.displaySmall, modifier = Modifier.weight(1f))
                 PillButton(strings.guests.newGuest, { creating = true }, icon = Icons.Rounded.PersonAdd, testTag = "guest-new")
@@ -103,12 +107,19 @@ fun GuestsScreen(state: UiState, vm: AppViewModel) {
             else LazyColumn(Modifier.testTag("guest-list")) {
                 items(state.visibleGuests, key = { it.id }) { c -> GuestRow(c, c.id == state.selectedGuest?.id) { vm.selectGuest(c.id) } }
             }
+        } }
+
+    if (LocalCompact.current) {
+        if (guest == null) list(Modifier.fillMaxSize())
+        else Column(Modifier.fillMaxSize()) {
+            BackBar({ vm.selectGuest(null) })
+            Box(Modifier.weight(1f)) { profile() }
         }
+    } else Row(Modifier.fillMaxSize()) {
+        list(Modifier.weight(0.36f).fillMaxHeight())
         Box(Modifier.width(1.dp).fillMaxHeight().background(Route66.Ink.copy(alpha = 0.08f)))
-        val guest = state.selectedGuest
         Box(Modifier.weight(0.64f).fillMaxHeight()) {
-            if (guest == null) EmptyState(strings.guests.pick, "")
-            else GuestProfile(state, guest, vm, onEdit = { editing = guest }, onSettle = { settling = guest })
+            if (guest == null) EmptyState(strings.guests.pick, "") else profile()
         }
     }
 
@@ -121,36 +132,49 @@ fun GuestsScreen(state: UiState, vm: AppViewModel) {
 private fun GuestProfile(state: UiState, guest: Customer, vm: AppViewModel, onEdit: () -> Unit, onSettle: () -> Unit) {
     val strings = LocalStrings.current
     val money = { c: Int -> Money.format(c, strings.code) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
+    val compact = LocalCompact.current
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(if (compact) 16.dp else 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Avatar(guest.name, size = 72.dp)
-            Spacer(Modifier.width(18.dp))
+            Avatar(guest.name, size = if (compact) 52.dp else 72.dp)
+            Spacer(Modifier.width(if (compact) 12.dp else 18.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(guest.name, style = MaterialTheme.typography.displaySmall, modifier = Modifier.testTag("guest-name"))
+                    Text(guest.name, style = if (compact) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displaySmall, modifier = Modifier.weight(1f, fill = false).testTag("guest-name"))
                     if (guest.regular) { Spacer(Modifier.width(10.dp)); Badge(strings.guests.regular, Route66.Gold, onColor = Route66.Asphalt) }
                 }
                 Text(listOf(guest.phone, guest.email).filter { it.isNotBlank() }.joinToString(" · "), color = Route66.Muted)
                 if (guest.note.isNotBlank()) Text("„${guest.note}“", color = Route66.Blue, style = MaterialTheme.typography.bodyMedium)
             }
-            PillButton(strings.guests.editGuest, onEdit, kind = ButtonKind.Secondary, icon = Icons.Rounded.Edit, testTag = "guest-edit")
+            if (compact) IconButton(onClick = onEdit, modifier = Modifier.testTag("guest-edit")) { Icon(Icons.Rounded.Edit, contentDescription = strings.guests.editGuest, tint = Route66.Muted) }
+            else PillButton(strings.guests.editGuest, onEdit, kind = ButtonKind.Secondary, icon = Icons.Rounded.Edit, testTag = "guest-edit")
         }
         Spacer(Modifier.height(20.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Stat(strings.guests.balance, money(guest.balanceCents), Modifier.weight(1f), accent = if (guest.balanceCents > 0) Route66.Crimson else Route66.Green,
-                sub = if (guest.creditLimitCents > 0) "${strings.guests.creditLimit.substringBefore(" (")}: ${money(guest.creditLimitCents)}" else null)
-            Stat(strings.guests.spent, money(guest.totalSpentCents), Modifier.weight(1f))
-            Stat(strings.guests.visits, "${guest.visits}", Modifier.weight(1f))
-            Stat(strings.guests.lastVisit, guest.lastVisitAt?.let { Times.date(it, strings.code) } ?: strings.guests.never, Modifier.weight(1f))
+        val stats: List<@Composable (Modifier) -> Unit> = listOf(
+            { m -> Stat(strings.guests.balance, money(guest.balanceCents), m, accent = if (guest.balanceCents > 0) Route66.Crimson else Route66.Green,
+                sub = if (guest.creditLimitCents > 0) "${strings.guests.creditLimit.substringBefore(" (")}: ${money(guest.creditLimitCents)}" else null) },
+            { m -> Stat(strings.guests.spent, money(guest.totalSpentCents), m) },
+            { m -> Stat(strings.guests.visits, "${guest.visits}", m) },
+            { m -> Stat(strings.guests.lastVisit, guest.lastVisitAt?.let { Times.date(it, strings.code) } ?: strings.guests.never, m) },
+        )
+        // Four across on a tablet, two by two on a phone.
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            stats.chunked(if (compact) 2 else 4).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { row.forEach { stat -> stat(Modifier.weight(1f)) } }
+            }
         }
         Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PillButton(if (guest.openTabId != null) strings.guests.goToTab else strings.guests.openTab, { vm.openTabForGuest(guest) }, icon = Icons.Rounded.LocalBar, big = true, modifier = Modifier.weight(1f), testTag = "guest-open-tab")
-            PillButton(strings.guests.settle, onSettle, kind = ButtonKind.Blue, icon = Icons.Rounded.Payments, enabled = guest.balanceCents > 0, big = true, modifier = Modifier.weight(1f), testTag = "guest-settle")
+        val openTab: @Composable (Modifier) -> Unit = { m -> PillButton(if (guest.openTabId != null) strings.guests.goToTab else strings.guests.openTab, { vm.openTabForGuest(guest) }, icon = Icons.Rounded.LocalBar, big = true, modifier = m, testTag = "guest-open-tab") }
+        val settle: @Composable (Modifier) -> Unit = { m -> PillButton(strings.guests.settle, onSettle, kind = ButtonKind.Blue, icon = Icons.Rounded.Payments, enabled = guest.balanceCents > 0, big = true, modifier = m, testTag = "guest-settle") }
+        if (compact) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            openTab(Modifier.fillMaxWidth())
+            settle(Modifier.fillMaxWidth())
+        } else Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            openTab(Modifier.weight(1f))
+            settle(Modifier.weight(1f))
         }
         Spacer(Modifier.height(20.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Card(Modifier.weight(1f)) {
+        val favourites: @Composable (Modifier) -> Unit = { m ->
+            Card(m) {
                 Column {
                     SectionTitle(strings.guests.favourites)
                     Spacer(Modifier.height(10.dp))
@@ -165,13 +189,15 @@ private fun GuestProfile(state: UiState, guest: Customer, vm: AppViewModel, onEd
                     }
                 }
             }
-            Card(Modifier.weight(1.4f)) {
+        }
+        val history: @Composable (Modifier) -> Unit = { m ->
+            Card(m) {
                 Column {
                     SectionTitle(strings.guests.tabsHistory)
                     Spacer(Modifier.height(10.dp))
                     guest.tabs.take(15).forEach { t ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(Times.date(t.openedAt, strings.code), modifier = Modifier.width(110.dp))
+                            Text(Times.date(t.openedAt, strings.code), modifier = Modifier.width(if (compact) 92.dp else 110.dp))
                             Text(
                                 when (t.status) {
                                     TabStatus.Open -> strings.tabs.open
@@ -187,6 +213,14 @@ private fun GuestProfile(state: UiState, guest: Customer, vm: AppViewModel, onEd
                     }
                 }
             }
+        }
+        if (compact) {
+            favourites(Modifier.fillMaxWidth())
+            Spacer(Modifier.height(16.dp))
+            history(Modifier.fillMaxWidth())
+        } else Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            favourites(Modifier.weight(1f))
+            history(Modifier.weight(1.4f))
         }
         if (guest.balanceCents == 0 && guest.openTabId == null) {
             Spacer(Modifier.height(16.dp))
@@ -208,9 +242,17 @@ private fun GuestForm(guest: Customer?, owner: Boolean, vm: AppViewModel, onDism
     DialogFrame(if (guest == null) strings.guests.newGuest else strings.guests.editGuest, onDismiss, testTag = "guest-form") {
         OutlinedTextField(name, { name = it }, label = { Text(strings.guests.name) }, singleLine = true, colors = field(), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().testTag("guest-form-name"))
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(phone, { phone = it }, label = { Text(strings.guests.phone) }, singleLine = true, colors = field(), shape = RoundedCornerShape(18.dp), modifier = Modifier.weight(1f).testTag("guest-form-phone"))
-            OutlinedTextField(email, { email = it }, label = { Text(strings.guests.email) }, singleLine = true, colors = field(), shape = RoundedCornerShape(18.dp), modifier = Modifier.weight(1f))
+        val compact = LocalCompact.current
+        val phoneField: @Composable (Modifier) -> Unit = { m -> OutlinedTextField(phone, { phone = it }, label = { Text(strings.guests.phone) }, singleLine = true, colors = field(), shape = RoundedCornerShape(18.dp), modifier = m.testTag("guest-form-phone")) }
+        val emailField: @Composable (Modifier) -> Unit = { m -> OutlinedTextField(email, { email = it }, label = { Text(strings.guests.email) }, singleLine = true, colors = field(), shape = RoundedCornerShape(18.dp), modifier = m) }
+        val limitField: @Composable (Modifier) -> Unit = { m -> OutlinedTextField(limit, { limit = it }, enabled = owner, label = { Text(strings.guests.creditLimit) }, supportingText = { Text(strings.guests.creditHint) }, singleLine = true, colors = field(), shape = RoundedCornerShape(18.dp), modifier = m) }
+        if (compact) {
+            phoneField(Modifier.fillMaxWidth())
+            Spacer(Modifier.height(10.dp))
+            emailField(Modifier.fillMaxWidth())
+        } else Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            phoneField(Modifier.weight(1f))
+            emailField(Modifier.weight(1f))
         }
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(note, { note = it }, label = { Text(strings.guests.note) }, colors = field(), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().testTag("guest-form-note"))
@@ -218,9 +260,12 @@ private fun GuestForm(guest: Customer?, owner: Boolean, vm: AppViewModel, onDism
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(regular, { regular = it }, modifier = Modifier.testTag("guest-form-regular"))
             Text(strings.guests.regular)
-            Spacer(Modifier.width(24.dp))
-            OutlinedTextField(limit, { limit = it }, enabled = owner, label = { Text(strings.guests.creditLimit) }, supportingText = { Text(strings.guests.creditHint) }, singleLine = true, colors = field(), shape = RoundedCornerShape(18.dp), modifier = Modifier.weight(1f))
+            if (!compact) {
+                Spacer(Modifier.width(24.dp))
+                limitField(Modifier.weight(1f))
+            }
         }
+        if (compact) limitField(Modifier.fillMaxWidth())
         Spacer(Modifier.height(16.dp))
         PillButton(strings.guests.save, {
             vm.saveGuest(guest?.id, name, phone, email, note, regular, if (owner) Money.parse(limit) ?: 0 else null) { onDismiss() }
@@ -237,8 +282,8 @@ private fun SettleDialog(guest: Customer, vm: AppViewModel, onDismiss: () -> Uni
     DialogFrame(strings.pay.settleTitle, onDismiss, width = 640.dp, testTag = "settle-dialog") {
         Text(strings.pay.settleHint(Money.format(guest.balanceCents, strings.code)), color = Route66.Muted)
         Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            Column(Modifier.weight(1f)) {
+        val amountAndMethod: @Composable (Modifier) -> Unit = { modifier ->
+            Column(modifier) {
                 Eyebrow(strings.pay.amount, color = Route66.Muted)
                 MoneyText(cents, fontSize = 38.sp)
                 Spacer(Modifier.height(12.dp))
@@ -247,6 +292,13 @@ private fun SettleDialog(guest: Customer, vm: AppViewModel, onDismiss: () -> Uni
                     FilterChip(strings.pay.cardTerminal, method == PayMethod.CardTerminal, { method = PayMethod.CardTerminal })
                 }
             }
+        }
+        if (LocalCompact.current) {
+            amountAndMethod(Modifier.fillMaxWidth())
+            Spacer(Modifier.height(14.dp))
+            Keypad(onKey = { amount = applyKey(amount, it) }, modifier = Modifier.fillMaxWidth())
+        } else Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            amountAndMethod(Modifier.weight(1f))
             Keypad(onKey = { amount = applyKey(amount, it) }, modifier = Modifier.width(260.dp))
         }
         Spacer(Modifier.height(16.dp))

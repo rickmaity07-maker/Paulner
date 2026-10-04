@@ -36,6 +36,8 @@ import com.paulanerroute66.deckel.i18n.LocalStrings
 import com.paulanerroute66.deckel.ui.AppViewModel
 import com.paulanerroute66.deckel.ui.UiState
 import com.paulanerroute66.deckel.ui.components.Badge
+import com.paulanerroute66.deckel.ui.components.BackBar
+import com.paulanerroute66.deckel.ui.components.LocalCompact
 import com.paulanerroute66.deckel.ui.components.ButtonKind
 import com.paulanerroute66.deckel.ui.components.DashedDivider
 import com.paulanerroute66.deckel.ui.components.Divider
@@ -50,9 +52,9 @@ import com.paulanerroute66.deckel.ui.theme.Route66
 fun HistoryScreen(state: UiState, vm: AppViewModel) {
     val strings = LocalStrings.current
     LaunchedEffect(Unit) { vm.loadHistory(state.historyDate) }
-    Row(Modifier.fillMaxSize()) {
-        Column(Modifier.weight(0.4f).fillMaxHeight().background(Route66.Paper.copy(alpha = 0.5f)).padding(18.dp)) {
-            Text(strings.history.title, style = MaterialTheme.typography.displaySmall)
+    val compact = LocalCompact.current
+    val list: @Composable (Modifier) -> Unit = { modifier -> Column(modifier.background(Route66.Paper.copy(alpha = 0.5f)).padding(if (compact) 14.dp else 18.dp)) {
+            Text(strings.history.title, style = if (compact) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.displaySmall)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton({ vm.loadHistory(state.historyDate.minusDays(1)) }, Modifier.testTag("history-prev")) { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, null) }
                 Text(Times.day(state.historyDate, strings.code), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
@@ -77,11 +79,10 @@ fun HistoryScreen(state: UiState, vm: AppViewModel) {
                     Divider()
                 }
             }
-        }
-        Box(Modifier.width(1.dp).fillMaxHeight().background(Route66.Ink.copy(alpha = 0.08f)))
-        val tab = state.historySelected
-        Box(Modifier.weight(0.6f).fillMaxHeight()) {
-            if (tab == null) EmptyState(strings.history.pick, "") else Column(Modifier.padding(24.dp)) {
+        } }
+    val tab = state.historySelected
+    val detail: @Composable () -> Unit = {
+        if (tab != null) Column(Modifier.padding(if (compact) 16.dp else 24.dp)) {
                 Eyebrow("${strings.tabs.number(tab.number)} · ${strings.history.readOnly}")
                 Text(tab.label, style = MaterialTheme.typography.displaySmall)
                 Spacer(Modifier.height(12.dp))
@@ -108,6 +109,19 @@ fun HistoryScreen(state: UiState, vm: AppViewModel) {
                     PillButton(strings.tabs.reopen, { vm.reopenFromHistory(tab) }, kind = ButtonKind.Secondary, icon = Icons.Rounded.LockOpen, testTag = "history-reopen")
                 }
             }
+    }
+
+    if (compact) {
+        if (tab == null) list(Modifier.fillMaxSize())
+        else Column(Modifier.fillMaxSize()) {
+            BackBar({ vm.selectHistory(null) })
+            Box(Modifier.weight(1f)) { detail() }
+        }
+    } else Row(Modifier.fillMaxSize()) {
+        list(Modifier.weight(0.4f).fillMaxHeight())
+        Box(Modifier.width(1.dp).fillMaxHeight().background(Route66.Ink.copy(alpha = 0.08f)))
+        Box(Modifier.weight(0.6f).fillMaxHeight()) {
+            if (tab == null) EmptyState(strings.history.pick, "") else detail()
         }
     }
 }

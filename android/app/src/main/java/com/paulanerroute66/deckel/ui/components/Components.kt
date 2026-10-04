@@ -144,7 +144,7 @@ fun PillButton(
                 Icon(icon, contentDescription = null, modifier = Modifier.size(if (big) 22.dp else 18.dp))
                 Spacer(Modifier.width(8.dp))
             }
-            Text(text, style = if (big) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelLarge, maxLines = 1)
+            Text(text, style = if (big) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
     }
 }

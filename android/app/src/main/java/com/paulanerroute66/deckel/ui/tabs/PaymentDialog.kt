@@ -2,6 +2,8 @@ package com.paulanerroute66.deckel.ui.tabs
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,6 +33,7 @@ import com.paulanerroute66.deckel.ui.components.ButtonKind
 import com.paulanerroute66.deckel.ui.components.Eyebrow
 import com.paulanerroute66.deckel.ui.components.FilterChip
 import com.paulanerroute66.deckel.ui.components.Keypad
+import com.paulanerroute66.deckel.ui.components.LocalCompact
 import com.paulanerroute66.deckel.ui.components.MoneyText
 import com.paulanerroute66.deckel.ui.components.PillButton
 import com.paulanerroute66.deckel.ui.components.applyKey
@@ -72,20 +75,20 @@ fun PaymentDialog(state: UiState, tab: Tab, request: PayRequest, vm: AppViewMode
             }
             return@DialogFrame
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            Column(Modifier.weight(1f)) {
+        val compact = LocalCompact.current
+        val details: @Composable (Modifier) -> Unit = { modifier -> Column(modifier) {
                 Eyebrow(strings.pay.due, color = Route66.Muted)
                 MoneyText(due, fontSize = 30.sp, color = Route66.Crimson)
                 Spacer(Modifier.height(12.dp))
                 Eyebrow(strings.pay.amount, color = Route66.Muted)
                 MoneyText(amountCents, fontSize = 40.sp)
-                if (!request.roundOnly) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!request.roundOnly) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(strings.pay.rest, amountCents == due, { amount = Money.plain(due, "en") })
                     FilterChip(strings.pay.half, false, { amount = Money.plain(due / 2, "en") })
                 }
                 Spacer(Modifier.height(12.dp))
                 Eyebrow(strings.pay.tip, color = Route66.Muted)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(strings.pay.noTip, tip == 0, { tip = 0 })
                     FilterChip(strings.pay.roundUp, tip > 0 && tip == Money.roundUp(amountCents) - amountCents, { tip = Money.roundUp(amountCents) - amountCents })
                     FilterChip("+1 €", tip == 100, { tip = 100 })
@@ -93,7 +96,7 @@ fun PaymentDialog(state: UiState, tab: Tab, request: PayRequest, vm: AppViewMode
                 }
                 Spacer(Modifier.height(12.dp))
                 Eyebrow(strings.pay.method, color = Route66.Muted)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(strings.pay.cash, method == PayMethod.Cash, { method = PayMethod.Cash })
                     FilterChip(strings.pay.cardTerminal, method == PayMethod.CardTerminal, { method = PayMethod.CardTerminal })
                     if (readerReady && !request.roundOnly) FilterChip(strings.pay.tapToPay, method == PayMethod.TapToPay, { method = PayMethod.TapToPay })
@@ -104,8 +107,8 @@ fun PaymentDialog(state: UiState, tab: Tab, request: PayRequest, vm: AppViewMode
                     Text("${strings.pay.given}: ${givenCents?.let { Money.format(it, strings.code) } ?: "–"}", style = MaterialTheme.typography.titleMedium)
                     if (givenCents != null) Text(strings.pay.change(Money.format(Money.change(givenCents, amountCents + tip), strings.code)), color = Route66.Green, style = MaterialTheme.typography.titleLarge)
                 }
-            }
-            Column(Modifier.width(300.dp)) {
+            } }
+        val keys: @Composable (Modifier) -> Unit = { modifier -> Column(modifier) {
                 Keypad(onKey = { key -> if (method == PayMethod.Cash && amountCents == due) given = applyKey(given, key) else amount = applyKey(amount, key) })
                 Spacer(Modifier.height(16.dp))
                 PillButton(
@@ -118,7 +121,14 @@ fun PaymentDialog(state: UiState, tab: Tab, request: PayRequest, vm: AppViewMode
                     modifier = Modifier.fillMaxWidth(),
                     testTag = "pay-confirm",
                 )
-            }
+            } }
+        if (compact) {
+            details(Modifier.fillMaxWidth())
+            Spacer(Modifier.height(16.dp))
+            keys(Modifier.fillMaxWidth())
+        } else Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            details(Modifier.weight(1f))
+            keys(Modifier.width(300.dp))
         }
     }
 }

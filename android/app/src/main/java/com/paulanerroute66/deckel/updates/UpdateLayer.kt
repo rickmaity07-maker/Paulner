@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,6 +35,7 @@ import com.paulanerroute66.deckel.i18n.LocalStrings
 import com.paulanerroute66.deckel.ui.AppViewModel
 import com.paulanerroute66.deckel.ui.UiState
 import com.paulanerroute66.deckel.ui.components.ButtonKind
+import com.paulanerroute66.deckel.ui.components.LocalCompact
 import com.paulanerroute66.deckel.ui.components.PillButton
 import com.paulanerroute66.deckel.ui.components.Shield
 import com.paulanerroute66.deckel.ui.theme.Route66
@@ -59,12 +62,14 @@ fun UpdateLayer(state: UiState, vm: AppViewModel) {
 
     if (mandatory || busy) {
         Box(Modifier.fillMaxSize().background(Route66.Asphalt.copy(alpha = if (mandatory) 0.96f else 0.7f)), contentAlignment = Alignment.Center) {
-            UpdateCard(state, vm, release, mandatory, Modifier.width(560.dp))
+            UpdateCard(state, vm, release, mandatory, Modifier.padding(16.dp).widthIn(max = 560.dp).fillMaxWidth())
         }
     } else {
-        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.BottomEnd) {
+        // On a phone it sits above the bottom navigation, full width.
+        val compact = LocalCompact.current
+        Box(Modifier.fillMaxSize().navigationBarsPadding().padding(if (compact) 12.dp else 24.dp).padding(bottom = if (compact) 64.dp else 0.dp), contentAlignment = Alignment.BottomEnd) {
             AnimatedVisibility(!state.updateDismissed, enter = slideInVertically { it }, exit = slideOutVertically { it }) {
-                UpdateCard(state, vm, release, mandatory = false, Modifier.width(420.dp))
+                UpdateCard(state, vm, release, mandatory = false, Modifier.widthIn(max = 420.dp).fillMaxWidth())
             }
         }
     }

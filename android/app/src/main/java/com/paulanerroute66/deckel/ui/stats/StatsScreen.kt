@@ -2,6 +2,7 @@ package com.paulanerroute66.deckel.ui.stats
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,7 @@ import com.paulanerroute66.deckel.ui.StatsRange
 import com.paulanerroute66.deckel.ui.UiState
 import com.paulanerroute66.deckel.ui.components.Card
 import com.paulanerroute66.deckel.ui.components.FilterChip
+import com.paulanerroute66.deckel.ui.components.LocalCompact
 import com.paulanerroute66.deckel.ui.components.MoneyText
 import com.paulanerroute66.deckel.ui.components.SectionTitle
 import com.paulanerroute66.deckel.ui.components.Stat
@@ -49,38 +51,51 @@ fun StatsScreen(state: UiState, vm: AppViewModel) {
     LaunchedEffect(Unit) { vm.loadStats(state.statsRange) }
     val s = state.stats
     val money = { c: Int -> Money.format(c, strings.code) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(strings.stats.title, style = MaterialTheme.typography.displaySmall, modifier = Modifier.weight(1f))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    val compact = LocalCompact.current
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(if (compact) 16.dp else 24.dp)) {
+        val ranges: @Composable () -> Unit = {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(StatsRange.Today to strings.stats.today, StatsRange.Yesterday to strings.stats.yesterday, StatsRange.Week to strings.stats.week, StatsRange.Month to strings.stats.month)
                     .forEach { (r, label) -> FilterChip(label, state.statsRange == r, { vm.loadStats(r) }, Modifier.testTag("range-$r")) }
             }
         }
+        if (compact) {
+            Text(strings.stats.title, style = MaterialTheme.typography.headlineLarge)
+            Spacer(Modifier.height(10.dp))
+            ranges()
+        } else Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(strings.stats.title, style = MaterialTheme.typography.displaySmall, modifier = Modifier.weight(1f))
+            ranges()
+        }
         Spacer(Modifier.height(20.dp))
         if (s == null) return@Column
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Stat(strings.stats.revenue, money(s.revenueCents), Modifier.weight(1f).testTag("stat-revenue"), accent = Route66.Crimson, sub = "${s.paymentCount} ${strings.stats.payments}")
-            Stat(strings.stats.tips, money(s.tipsCents), Modifier.weight(1f))
-            Stat(strings.stats.openTabs, money(s.openTabs.balanceCents), Modifier.weight(1f), sub = "${s.openTabs.count}")
-            Stat(strings.stats.onAccount, money(s.debts.balanceCents), Modifier.weight(1f), accent = Route66.Blue, sub = strings.stats.guestsCount(s.debts.guests))
-            Stat(strings.stats.voids, "${s.voids.count}", Modifier.weight(1f), sub = money(s.voids.amountCents))
+        val tiles: List<@Composable (Modifier) -> Unit> = listOf(
+            { m -> Stat(strings.stats.revenue, money(s.revenueCents), m.testTag("stat-revenue"), accent = Route66.Crimson, sub = "${s.paymentCount} ${strings.stats.payments}") },
+            { m -> Stat(strings.stats.tips, money(s.tipsCents), m) },
+            { m -> Stat(strings.stats.openTabs, money(s.openTabs.balanceCents), m, sub = "${s.openTabs.count}") },
+            { m -> Stat(strings.stats.onAccount, money(s.debts.balanceCents), m, accent = Route66.Blue, sub = strings.stats.guestsCount(s.debts.guests)) },
+            { m -> Stat(strings.stats.voids, "${s.voids.count}", m, sub = money(s.voids.amountCents)) },
+        )
+        // Five across on a tablet; on a phone revenue gets its own row, the rest go two by two.
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val rows = if (compact) listOf(tiles.take(1)) + tiles.drop(1).chunked(2) else listOf(tiles)
+            rows.forEach { row -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { row.forEach { tile -> tile(Modifier.weight(1f)) } } }
         }
         Spacer(Modifier.height(16.dp))
         if (s.revenueCents == 0 && s.topDrinks.isEmpty()) {
             Text(strings.stats.noData, color = Route66.Muted, modifier = Modifier.padding(24.dp))
             return@Column
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Card(Modifier.weight(1.4f)) { Column { SectionTitle(strings.stats.byHour); Spacer(Modifier.height(12.dp)); HourChart(s) } }
-            Card(Modifier.weight(1f)) {
+        val byHour: @Composable (Modifier) -> Unit = { m -> Card(m) { Column { SectionTitle(strings.stats.byHour); Spacer(Modifier.height(12.dp)); HourChart(s) } } }
+        val byMethod: @Composable (Modifier) -> Unit = { m ->
+            Card(m) {
                 Column {
                     SectionTitle(strings.stats.byMethod)
                     Spacer(Modifier.height(12.dp))
                     val max = s.byMethod.maxOfOrNull { it.amount }?.coerceAtLeast(1) ?: 1
                     s.byMethod.forEach { m ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(vm.methodName(m.method), modifier = Modifier.width(130.dp))
+                            Text(vm.methodName(m.method), modifier = Modifier.width(if (compact) 104.dp else 130.dp))
                             Box(Modifier.weight(1f).height(14.dp).clip(RoundedCornerShape(4.dp)).background(Route66.Ink.copy(alpha = 0.06f))) {
                                 Box(Modifier.fillMaxWidth(m.amount / max.toFloat()).height(14.dp).background(Route66.Blue))
                             }
@@ -92,6 +107,14 @@ fun StatsScreen(state: UiState, vm: AppViewModel) {
                 }
             }
         }
+        if (compact) {
+            byHour(Modifier.fillMaxWidth())
+            Spacer(Modifier.height(16.dp))
+            byMethod(Modifier.fillMaxWidth())
+        } else Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            byHour(Modifier.weight(1.4f))
+            byMethod(Modifier.weight(1f))
+        }
         Spacer(Modifier.height(16.dp))
         Card(Modifier.fillMaxWidth()) {
             Column {
@@ -101,8 +124,9 @@ fun StatsScreen(state: UiState, vm: AppViewModel) {
                 s.topDrinks.forEachIndexed { i, d ->
                     Row(Modifier.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("${i + 1}", fontFamily = GeistMono, color = Route66.Muted, modifier = Modifier.width(28.dp))
-                        Text("${d.name} ${d.size}", modifier = Modifier.width(260.dp))
-                        Box(Modifier.weight(1f).height(14.dp).clip(RoundedCornerShape(4.dp)).background(Route66.Ink.copy(alpha = 0.06f))) {
+                        // A phone has no room for the bar; the name takes the space instead.
+                        Text("${d.name} ${d.size}", modifier = if (compact) Modifier.weight(1f) else Modifier.width(260.dp), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        if (!compact) Box(Modifier.weight(1f).height(14.dp).clip(RoundedCornerShape(4.dp)).background(Route66.Ink.copy(alpha = 0.06f))) {
                             Box(Modifier.fillMaxWidth(d.qty / max.toFloat()).height(14.dp).background(Route66.Crimson))
                         }
                         Spacer(Modifier.width(10.dp))

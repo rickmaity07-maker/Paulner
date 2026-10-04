@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,6 +35,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -92,6 +94,7 @@ import com.paulanerroute66.deckel.ui.AppViewModel
 import com.paulanerroute66.deckel.ui.TabFilter
 import com.paulanerroute66.deckel.ui.UiState
 import com.paulanerroute66.deckel.ui.components.Avatar
+import com.paulanerroute66.deckel.ui.components.BackBar
 import com.paulanerroute66.deckel.ui.components.Badge
 import com.paulanerroute66.deckel.ui.components.ButtonKind
 import com.paulanerroute66.deckel.ui.components.DashedDivider
@@ -99,6 +102,7 @@ import com.paulanerroute66.deckel.ui.components.Divider
 import com.paulanerroute66.deckel.ui.components.EmptyState
 import com.paulanerroute66.deckel.ui.components.Eyebrow
 import com.paulanerroute66.deckel.ui.components.FilterChip
+import com.paulanerroute66.deckel.ui.components.LocalCompact
 import com.paulanerroute66.deckel.ui.components.MoneyText
 import com.paulanerroute66.deckel.ui.components.PillButton
 import com.paulanerroute66.deckel.ui.components.Segmented
@@ -121,24 +125,53 @@ fun TabsScreen(state: UiState, vm: AppViewModel) {
     val strings = LocalStrings.current
     val tab = state.selectedTab
 
-    Row(Modifier.fillMaxSize()) {
+    val detail: @Composable (Modifier) -> Unit = { modifier ->
+        if (tab != null) TabDetail(
+            state = state,
+            tab = tab,
+            vm = vm,
+            onPay = { amount -> showPay = PayRequest(amount, roundOnly = false) },
+            onBookAndPay = { showPay = PayRequest(state.roundCents, roundOnly = true) },
+            onItem = { itemDialog = it },
+            onEdit = { showEdit = true },
+            onLink = { showLink = true },
+            onConfirm = { confirm = it },
+            modifier = modifier,
+        )
+    }
+
+    if (LocalCompact.current) {
+        // Phone: the list, or one tab full-screen with its bill and the menu one switch apart.
+        if (tab == null) TabList(state, vm, onNew = { showNew = true }, modifier = Modifier.fillMaxSize())
+        else Column(Modifier.fillMaxSize()) {
+            // Opens on the menu: adding drinks is what happens most; the bill is one tap away.
+            var page by remember(tab.id) { mutableStateOf(TabPage.Menu) }
+            BackBar({ vm.selectTab(null) }) {
+                val roundCount = state.round.sumOf { it.qty }
+                Segmented(
+                    listOf(TabPage.Bill to strings.tabs.bill, TabPage.Menu to if (roundCount > 0) "${strings.tabs.categories} · $roundCount" else strings.tabs.categories),
+                    page, { page = it }, Modifier.weight(1f), testTagPrefix = "page",
+                )
+            }
+            when (page) {
+                TabPage.Bill -> detail(Modifier.weight(1f))
+                TabPage.Menu -> {
+                    DrinkGrid(state.menu?.categories.orEmpty(), state.round.associate { it.drink.id to it.qty }, vm::addToRound, Modifier.weight(1f))
+                    AnimatedVisibility(state.round.isNotEmpty(), enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                        Box(Modifier.padding(horizontal = 12.dp).heightIn(max = 300.dp).verticalScroll(rememberScrollState())) {
+                            RoundPanel(state, vm, tab) { showPay = PayRequest(state.roundCents, roundOnly = true) }
+                        }
+                    }
+                }
+            }
+        }
+    } else Row(Modifier.fillMaxSize()) {
         TabList(state, vm, onNew = { showNew = true }, modifier = Modifier.weight(0.27f).fillMaxHeight())
         Box(Modifier.width(1.dp).fillMaxHeight().background(Route66.Ink.copy(alpha = 0.08f)))
         if (tab == null) {
             Box(Modifier.weight(0.73f).fillMaxHeight()) { EmptyState(strings.tabs.pickOne, strings.tabs.pickHint) }
         } else {
-            TabDetail(
-                state = state,
-                tab = tab,
-                vm = vm,
-                onPay = { amount -> showPay = PayRequest(amount, roundOnly = false) },
-                onBookAndPay = { showPay = PayRequest(state.roundCents, roundOnly = true) },
-                onItem = { itemDialog = it },
-                onEdit = { showEdit = true },
-                onLink = { showLink = true },
-                onConfirm = { confirm = it },
-                modifier = Modifier.weight(0.36f).fillMaxHeight(),
-            )
+            detail(Modifier.weight(0.36f).fillMaxHeight())
             Box(Modifier.width(1.dp).fillMaxHeight().background(Route66.Ink.copy(alpha = 0.08f)))
             DrinkGrid(state.menu?.categories.orEmpty(), state.round.associate { it.drink.id to it.qty }, vm::addToRound, Modifier.weight(0.37f).fillMaxHeight())
         }
@@ -154,6 +187,8 @@ fun TabsScreen(state: UiState, vm: AppViewModel) {
     confirm?.let { c -> ConfirmDialog(c.title, c.confirmLabel, c.danger, onConfirm = { c.action(); confirm = null }, onDismiss = { confirm = null }) }
 }
 
+private enum class TabPage { Bill, Menu }
+
 data class PayRequest(val amountCents: Int, val roundOnly: Boolean)
 data class ConfirmRequest(val title: String, val confirmLabel: String, val danger: Boolean = false, val action: () -> Unit)
 
@@ -162,7 +197,7 @@ data class ConfirmRequest(val title: String, val confirmLabel: String, val dange
 @Composable
 private fun TabList(state: UiState, vm: AppViewModel, onNew: () -> Unit, modifier: Modifier) {
     val strings = LocalStrings.current
-    Column(modifier.background(Route66.Paper.copy(alpha = 0.5f)).padding(18.dp)) {
+    Column(modifier.background(Route66.Paper.copy(alpha = 0.5f)).padding(if (LocalCompact.current) 14.dp else 18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Eyebrow(strings.tabs.open)
@@ -266,12 +301,13 @@ private fun TabDetail(
 ) {
     val strings = LocalStrings.current
     val money = { cents: Int -> Money.format(cents, strings.code) }
-    Column(modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
+    val compact = LocalCompact.current
+    Column(modifier.padding(horizontal = if (compact) 16.dp else 20.dp, vertical = if (compact) 8.dp else 18.dp)) {
         // Header
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Eyebrow("${strings.tabs.number(tab.number)} · ${strings.tabs.since(Times.clock(tab.openedAt))}")
-                Text(tab.label, style = MaterialTheme.typography.displaySmall, color = Route66.Ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("tab-title"))
+                Text(tab.label, style = if (compact) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displaySmall, color = Route66.Ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("tab-title"))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(onClick = onLink, shape = CircleShape, color = if (tab.customer != null) Route66.Blue.copy(alpha = 0.12f) else Route66.Ink.copy(alpha = 0.05f)) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -320,7 +356,7 @@ private fun TabDetail(
                     Column(Modifier.fillMaxWidth().padding(vertical = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Rounded.MenuBook, null, Modifier.size(36.dp), tint = Route66.Muted.copy(alpha = 0.5f))
                         Spacer(Modifier.height(8.dp))
-                        Text(strings.tabs.roundEmpty, color = Route66.Muted, style = MaterialTheme.typography.bodyMedium)
+                        Text(if (LocalCompact.current) strings.tabs.roundEmptyPhone else strings.tabs.roundEmpty, color = Route66.Muted, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
@@ -467,9 +503,12 @@ private fun DrinkGrid(categories: List<Category>, inRound: Map<String, Int>, onA
     val strings = LocalStrings.current
     var selected by rememberSaveable { mutableStateOf(0) }
     val category = categories.getOrNull(selected)
-    Column(modifier.background(Route66.Paper.copy(alpha = 0.35f)).padding(18.dp)) {
-        Eyebrow(strings.tabs.categories)
-        Spacer(Modifier.height(8.dp))
+    val compact = LocalCompact.current
+    Column(modifier.background(Route66.Paper.copy(alpha = 0.35f)).padding(if (compact) 12.dp else 18.dp)) {
+        if (!compact) {
+            Eyebrow(strings.tabs.categories)
+            Spacer(Modifier.height(8.dp))
+        }
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             categories.forEachIndexed { index, c ->
                 val active = index == selected
@@ -495,7 +534,7 @@ private fun DrinkGrid(categories: List<Category>, inRound: Map<String, Int>, onA
         Spacer(Modifier.height(14.dp))
         if (category != null) {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(150.dp),
+                columns = GridCells.Adaptive(if (compact) 140.dp else 150.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 24.dp),

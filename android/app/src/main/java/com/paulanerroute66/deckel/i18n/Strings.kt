@@ -43,6 +43,7 @@ data class Tabs(
     val alreadyOpen: String, val closeConfirm: String, val onAccountConfirm: (String, String) -> String, val voidConfirm: String,
     val soldOut: String, val owes: (String) -> String, val by: (String) -> String, val modeTitle: String, val number: (Int) -> String,
     val closed: String, val onAccount: String, val voidStatus: String, val categories: String,
+    val bill: String, val roundEmptyPhone: String,
 )
 
 data class Pay(
@@ -180,11 +181,12 @@ val German = Strings(
         alreadyOpen = "hat einen offenen Deckel", closeConfirm = "Deckel abschließen?", onAccountConfirm = { amount, name -> "$amount bei $name anschreiben?" },
         voidConfirm = "Den ganzen Deckel stornieren? Alle Getränke werden storniert.", soldOut = "aus", owes = { "schuldet $it" }, by = { "von $it" },
         modeTitle = "Zahlweise", number = { "Nr. $it" }, closed = "Abgeschlossen", onAccount = "Angeschrieben", voidStatus = "Storniert", categories = "Karte",
+        bill = "Rechnung", roundEmptyPhone = "Getränke unter „Karte“ antippen",
     ),
     pay = Pay(
         title = "Bezahlen", due = "Offen", amount = "Betrag", tip = "Trinkgeld", noTip = "Kein", roundUp = "Aufrunden", rest = "Alles", half = "Hälfte",
         method = "Zahlart", cash = "Bar", cardTerminal = "Karte (Gerät)", tapToPay = "Tap to Pay", other = "Sonstiges", given = "Gegeben",
-        change = { "Rückgeld: $it" }, confirm = { "$it kassieren" }, tapPrompt = "Karte oder Handy an das Tablet halten",
+        change = { "Rückgeld: $it" }, confirm = { "$it kassieren" }, tapPrompt = "Karte oder Handy hinten ans Gerät halten",
         tapWaiting = "Warte auf Karte …", tapProcessing = "Zahlung wird verarbeitet …", tapSuccess = "Bezahlt!", tapCancel = "Abbrechen",
         simulated = "Testmodus: simulierter Kartenleser", readerOffline = "Kartenleser nicht verbunden", settleTitle = "Schulden begleichen",
         settleHint = { "Offen: $it. Der älteste Deckel wird zuerst beglichen." }, partial = "Teilbetrag", methodOf = { it },
@@ -211,7 +213,7 @@ val German = Strings(
     history = History(title = "Verlauf", today = "Heute", empty = "An diesem Tag wurde kein Deckel abgeschlossen.", pick = "Wähle einen Deckel", readOnly = "Abgeschlossen – nur ansehen"),
     settings = Settings(
         title = "Einstellungen", account = "Angemeldet als", role = { if (it == "owner") "Inhaber" else "Personal" }, language = "Sprache",
-        reader = "Kartenzahlung", readerHint = "Tap to Pay: das Tablet liest Karten per NFC. Der Simulator ist zum Testen ohne echte Karte.",
+        reader = "Kartenzahlung", readerHint = "Tap to Pay: das Gerät liest Karten per NFC. Der Simulator ist zum Testen ohne echte Karte.",
         readerTapToPay = "Tap to Pay (NFC)", readerSimulator = "Simulator (Test)", readerOff = "Aus", readerStatus = "Status", connect = "Verbinden",
         disconnect = "Trennen", connected = { "Verbunden: $it" }, notConnected = "Nicht verbunden", connecting = "Verbinde …", server = "Server",
         version = "Version", signOut = "Abmelden", signOutConfirm = "Wirklich abmelden?",
@@ -256,11 +258,12 @@ val English = German.copy(
         onAccountConfirm = { amount, name -> "Put $amount on $name's account?" }, voidConfirm = "Void the whole tab? Every drink will be voided.",
         soldOut = "out", owes = { "owes $it" }, by = { "by $it" }, modeTitle = "Payment", number = { "No. $it" }, closed = "Closed", onAccount = "On account",
         voidStatus = "Voided", categories = "Menu",
+        bill = "Bill", roundEmptyPhone = "Tap drinks under \"Menu\"",
     ),
     pay = Pay(
         title = "Take payment", due = "Owed", amount = "Amount", tip = "Tip", noTip = "None", roundUp = "Round up", rest = "All", half = "Half",
         method = "Method", cash = "Cash", cardTerminal = "Card (terminal)", tapToPay = "Tap to Pay", other = "Other", given = "Given",
-        change = { "Change: $it" }, confirm = { "Take $it" }, tapPrompt = "Hold card or phone to the tablet", tapWaiting = "Waiting for card …",
+        change = { "Change: $it" }, confirm = { "Take $it" }, tapPrompt = "Hold card or phone to the back of the device", tapWaiting = "Waiting for card …",
         tapProcessing = "Processing payment …", tapSuccess = "Paid!", tapCancel = "Cancel", simulated = "Test mode: simulated card reader",
         readerOffline = "Card reader not connected", settleTitle = "Settle debt", settleHint = { "Owed: $it. The oldest tab is settled first." },
         partial = "Part amount", methodOf = { it },
@@ -286,7 +289,7 @@ val English = German.copy(
     history = History(title = "History", today = "Today", empty = "No tabs were closed on this day.", pick = "Pick a tab", readOnly = "Closed – view only"),
     settings = Settings(
         title = "Settings", account = "Signed in as", role = { if (it == "owner") "Owner" else "Staff" }, language = "Language", reader = "Card payments",
-        readerHint = "Tap to Pay: the tablet reads cards over NFC. The simulator is for testing without a real card.",
+        readerHint = "Tap to Pay: the device reads cards over NFC. The simulator is for testing without a real card.",
         readerTapToPay = "Tap to Pay (NFC)", readerSimulator = "Simulator (test)", readerOff = "Off", readerStatus = "Status", connect = "Connect",
         disconnect = "Disconnect", connected = { "Connected: $it" }, notConnected = "Not connected", connecting = "Connecting …", server = "Server",
         version = "Version", signOut = "Sign out", signOutConfirm = "Really sign out?",

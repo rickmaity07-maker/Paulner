@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -35,6 +37,7 @@ import com.paulanerroute66.deckel.ui.components.Avatar
 import com.paulanerroute66.deckel.ui.components.ButtonKind
 import com.paulanerroute66.deckel.ui.components.Card
 import com.paulanerroute66.deckel.ui.components.Eyebrow
+import com.paulanerroute66.deckel.ui.components.LocalCompact
 import com.paulanerroute66.deckel.ui.components.PillButton
 import com.paulanerroute66.deckel.ui.components.Segmented
 import com.paulanerroute66.deckel.ui.tabs.ConfirmDialog
@@ -46,25 +49,32 @@ fun SettingsScreen(state: UiState, vm: AppViewModel) {
     var confirmOut by remember { mutableStateOf(false) }
     // Tap to Pay needs location access before the reader may connect.
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.setReaderMode(ReaderMode.TapToPay) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(strings.settings.title, style = MaterialTheme.typography.displaySmall)
+    val compact = LocalCompact.current
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(if (compact) 16.dp else 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(strings.settings.title, style = if (compact) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.displaySmall)
         Card {
-            Row {
-                Avatar(state.user?.displayName ?: "", size = 56.dp)
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    Eyebrow(strings.settings.account, color = Route66.Muted)
-                    Text(state.user?.displayName ?: "", style = MaterialTheme.typography.titleLarge)
-                    Text("${state.user?.email} · ${strings.settings.role(state.user?.role ?: "")}", color = Route66.Muted)
+            Column {
+                Row {
+                    Avatar(state.user?.displayName ?: "", size = if (compact) 44.dp else 56.dp)
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.weight(1f)) {
+                        Eyebrow(strings.settings.account, color = Route66.Muted)
+                        Text(state.user?.displayName ?: "", style = MaterialTheme.typography.titleLarge)
+                        Text("${state.user?.email} · ${strings.settings.role(state.user?.role ?: "")}", color = Route66.Muted)
+                    }
+                    if (!compact) PillButton(strings.settings.signOut, { confirmOut = true }, kind = ButtonKind.Danger, icon = Icons.AutoMirrored.Rounded.Logout, testTag = "sign-out")
                 }
-                PillButton(strings.settings.signOut, { confirmOut = true }, kind = ButtonKind.Danger, icon = Icons.AutoMirrored.Rounded.Logout, testTag = "sign-out")
+                if (compact) {
+                    Spacer(Modifier.height(14.dp))
+                    PillButton(strings.settings.signOut, { confirmOut = true }, kind = ButtonKind.Danger, icon = Icons.AutoMirrored.Rounded.Logout, modifier = Modifier.fillMaxWidth(), testTag = "sign-out")
+                }
             }
         }
         Card {
             Column {
                 Eyebrow(strings.settings.language, color = Route66.Muted)
                 Spacer(Modifier.height(10.dp))
-                Segmented(listOf("de" to "Deutsch", "en" to "English"), state.language, vm::setLanguage, Modifier.width(360.dp), testTagPrefix = "settings-lang")
+                Segmented(listOf("de" to "Deutsch", "en" to "English"), state.language, vm::setLanguage, Modifier.widthIn(max = 360.dp).fillMaxWidth(), testTagPrefix = "settings-lang")
             }
         }
         Card {
@@ -77,7 +87,7 @@ fun SettingsScreen(state: UiState, vm: AppViewModel) {
                     listOf(ReaderMode.Off to strings.settings.readerOff, ReaderMode.Simulator to strings.settings.readerSimulator, ReaderMode.TapToPay to strings.settings.readerTapToPay),
                     state.readerMode,
                     { mode -> if (mode == ReaderMode.TapToPay) permission.launch(Manifest.permission.ACCESS_FINE_LOCATION) else vm.setReaderMode(mode) },
-                    Modifier.width(620.dp),
+                    Modifier.widthIn(max = 620.dp).fillMaxWidth(),
                     testTagPrefix = "reader",
                 )
                 Spacer(Modifier.height(12.dp))
@@ -95,7 +105,7 @@ fun SettingsScreen(state: UiState, vm: AppViewModel) {
                 }
             }
         }
-        Card {
+        Card(Modifier.fillMaxWidth()) {
             Column {
                 Text("${strings.settings.server}: ${BuildConfig.API_URL}", color = Route66.Muted)
                 Text("${strings.settings.version}: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})", color = Route66.Muted)

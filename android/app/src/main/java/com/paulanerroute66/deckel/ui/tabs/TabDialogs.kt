@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -62,6 +65,7 @@ import com.paulanerroute66.deckel.ui.components.Avatar
 import com.paulanerroute66.deckel.ui.components.ButtonKind
 import com.paulanerroute66.deckel.ui.components.Divider
 import com.paulanerroute66.deckel.ui.components.Eyebrow
+import com.paulanerroute66.deckel.ui.components.LocalCompact
 import com.paulanerroute66.deckel.ui.components.MoneyText
 import com.paulanerroute66.deckel.ui.components.PillButton
 import com.paulanerroute66.deckel.ui.components.Segmented
@@ -72,10 +76,16 @@ import com.paulanerroute66.deckel.ui.theme.Route66
 @Composable
 fun DialogFrame(title: String, onDismiss: () -> Unit, width: Dp = 560.dp, testTag: String = "dialog", content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(shape = RoundedCornerShape(28.dp), color = Route66.Cream, modifier = Modifier.width(width).testTag(testTag)) {
-            Column(Modifier.padding(28.dp)) {
+        // On a phone the card takes the full width and scrolls when the keyboard or keypad needs the room.
+        val compact = LocalCompact.current
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = Route66.Cream,
+            modifier = Modifier.padding(horizontal = if (compact) 10.dp else 0.dp).widthIn(max = width).fillMaxWidth().testTag(testTag),
+        ) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(if (compact) 20.dp else 28.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, style = MaterialTheme.typography.headlineLarge, color = Route66.Ink, modifier = Modifier.weight(1f))
+                    Text(title, style = if (compact) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineLarge, color = Route66.Ink, modifier = Modifier.weight(1f))
                     IconButton(onClick = onDismiss, modifier = Modifier.testTag("$testTag-close")) { Icon(Icons.Rounded.Close, contentDescription = null) }
                 }
                 Spacer(Modifier.height(18.dp))
