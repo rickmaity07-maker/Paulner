@@ -12,6 +12,7 @@
     "app:release": "node --env-file-if-exists=.env.local scripts/release-app.mjs",
     "test:api": "node scripts/test-app-api.mjs",
     "test:web": "node scripts/test-website.cjs",
+    "test:touch": "node scripts/test-touch.cjs",
     "test:prod": "node scripts/smoke-production.mjs"
   },
   "dependencies": {
