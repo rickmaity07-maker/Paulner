@@ -108,6 +108,13 @@ class DeckelE2ETest {
     /* ---------- the shift ---------- */
 
     @Test fun t01_wrongPasswordIsRefused() {
+        // Start from the sign-in screen even if a previous run left the app signed in.
+        rule.waitUntil(20_000) { rule.onAllNodes(hasTestTag("login-email")).fetchSemanticsNodes().isNotEmpty() || rule.onAllNodes(hasTestTag("nav-settings")).fetchSemanticsNodes().isNotEmpty() }
+        if (rule.onAllNodes(hasTestTag("nav-settings")).fetchSemanticsNodes().isNotEmpty()) {
+            tap("nav-settings")
+            tap("sign-out")
+            tap("confirm-ok")
+        }
         waitTag("login-email")
         shot("01-login")
         type("login-email", "staff.test@paulaner.local")

@@ -9,7 +9,10 @@
     "lint": "eslint",
     "db:setup": "node --env-file-if-exists=.env.local scripts/setup-db.mjs",
     "mail:preview": "npx -y tsx --conditions=react-server --env-file-if-exists=.env.local scripts/mail-preview.mts",
-    "app:release": "node --env-file-if-exists=.env.local scripts/release-app.mjs"
+    "app:release": "node --env-file-if-exists=.env.local scripts/release-app.mjs",
+    "test:api": "node scripts/test-app-api.mjs",
+    "test:web": "node scripts/test-website.cjs",
+    "test:prod": "node scripts/smoke-production.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

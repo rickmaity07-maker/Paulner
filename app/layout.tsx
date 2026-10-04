@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Rye } from "next/font/google";
+import { SITE_URL } from "@/lib/site-url";
 import "./globals.css";
 
 const geist = Geist({
@@ -23,6 +24,7 @@ const description =
   "Paulaner vom Fass und Route-66-Flair, Am Zeughaus 8 in Schweinfurt. Fassbier ab 2,50 €, fränkische Weine und alkoholfreie Getränke. 4,5 Sterne auf Google.";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title,
   description,
   openGraph: { title, description, type: "website", locale: "de_DE", alternateLocale: ["en_GB"], siteName: "Paulaner Meets Route 66" },

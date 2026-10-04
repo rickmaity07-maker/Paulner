@@ -43,7 +43,8 @@ const login = async (email, password) => (await ok(call("POST", "/api/app/login"
 
 console.log(`Deckel API tests against ${API}\n`);
 
-let owner, staff, menu, pils, helles, spezi;
+let owner, staff, menu, pils, helles, spezi, before;
+let extraCash = 0; // cash taken by tests that aren't part of the figures check
 
 console.log("Auth");
 await test("rejects requests without a token", async () => eq((await call("GET", "/api/app/tabs")).status, 401, "status"));
@@ -57,6 +58,8 @@ await test("owner and staff can sign in", async () => {
   owner = await login("owner.test@paulaner.local", "Owner-Test-2026");
   staff = await login("staff.test@paulaner.local", "Staff-Test-2026");
   if (!owner?.startsWith("r66app_") || !staff?.startsWith("r66app_")) throw new Error("no token");
+  // The test database keeps earlier runs, so figures are compared before and after this run.
+  before = await ok(call("GET", "/api/app/stats", { token: owner }), "stats before");
 });
 
 console.log("\nMenu");
@@ -218,16 +221,110 @@ await test("guests who owe money can't be archived", async () => {
   eq((await call("PATCH", `/api/app/customers/${guestTwo.id}`, { token: staff, body: { archived: true } })).json.code, "customer_owes_money", "code");
 });
 
+console.log("\nSplit bill and table numbers");
+let table;
+await test("a table number alone opens a tab called 'Tisch …'", async () => {
+  table = await ok(call("POST", "/api/app/tabs", { token: staff, body: { table: "12" } }), "open");
+  eq(table.label, "Tisch 12", "label");
+  eq(table.table, "12", "table");
+  eq((await call("POST", "/api/app/tabs", { token: staff, body: {} })).json.code, "label_required", "neither name nor table");
+});
+await test("one guest pays just their Pils; the server sets the amount", async () => {
+  table = await ok(call("POST", `/api/app/tabs/${table.id}/items`, { token: staff, body: { items: [{ drinkId: pils.id, qty: 2 }, { drinkId: helles.id, qty: 1 }] } }), "items");
+  eq(table.balanceCents, 1100, "balance");
+  const pilsLine = table.items.find((i) => i.name === "Paulaner Pils");
+  table = await ok(
+    call("POST", `/api/app/tabs/${table.id}/payments`, { token: staff, body: { amountCents: 1, method: "cash", items: [{ itemId: pilsLine.id, qty: 1 }] } }),
+    "split pay",
+  );
+  eq(table.paidCents, 350, "paid the Pils price, not the 1 cent sent");
+  eq(table.items.find((i) => i.id === pilsLine.id).paidQty, 1, "1 of 2 Pils paid");
+});
+await test("a drink can't be paid twice, voided once paid, or come from another tab", async () => {
+  const pilsLine = table.items.find((i) => i.name === "Paulaner Pils");
+  eq((await call("POST", `/api/app/tabs/${table.id}/payments`, { token: staff, body: { method: "cash", items: [{ itemId: pilsLine.id, qty: 2 }] } })).json.code, "item_already_paid", "twice");
+  eq((await call("PATCH", `/api/app/tabs/${table.id}/items/${pilsLine.id}`, { token: owner, body: { action: "void" } })).json.code, "item_paid", "void paid");
+  eq((await call("POST", `/api/app/tabs/${table.id}/payments`, { token: staff, body: { method: "cash", items: [{ itemId: tab.items[0].id, qty: 1 }] } })).json.code, "item_not_payable", "foreign item");
+  eq((await call("POST", `/api/app/tabs/${table.id}/payments`, { token: staff, body: { method: "cash", items: [] } })).json.code, "items_invalid", "empty");
+});
+await test("refunding the split payment frees the drink again", async () => {
+  const pay = table.payments.find((p) => !p.refunded);
+  table = await ok(call("POST", `/api/app/payments/${pay.id}/refund`, { token: owner }), "refund");
+  eq(table.items.find((i) => i.name === "Paulaner Pils").paidQty, 0, "paid qty back to 0");
+  eq(table.balanceCents, 1100, "balance back");
+});
+await test("two devices paying the whole tab at the same moment: only one goes through", async () => {
+  const results = await Promise.all(
+    [staff, owner].map((token) => call("POST", `/api/app/tabs/${table.id}/payments`, { token, body: { amountCents: 1100, method: "cash" } })),
+  );
+  const okCount = results.filter((r) => r.status === 200).length;
+  eq(okCount, 1, `successful payments (${results.map((r) => r.status + ":" + (r.json?.code ?? "ok")).join(", ")})`);
+  const t = await ok(call("GET", `/api/app/tabs/${table.id}`, { token: staff }), "tab");
+  eq(t.paidCents, 1100, "paid exactly once");
+  await ok(call("POST", `/api/app/tabs/${table.id}/close`, { token: staff, body: { action: "close" } }), "close");
+  // Keep the before/after figures honest: this tab's 11 € were cash.
+  extraCash += 1100;
+});
+
+console.log("\nHostile input");
+await test("malformed ids answer 422/404, never 500", async () => {
+  for (const path of ["/api/app/tabs/not-a-uuid", "/api/app/customers/1%27%20or%201=1--", "/api/app/tabs/00000000-0000-0000-0000-000000000000"]) {
+    const r = await call("GET", path, { token: owner });
+    if (![404, 422].includes(r.status)) throw new Error(`${path} -> ${r.status}`);
+  }
+});
+await test("SQL-looking search text is just text", async () => {
+  const r = await ok(call("GET", `/api/app/customers?q=${encodeURIComponent("' or 1=1; drop table users; --")}`, { token: staff }), "search");
+  eq(r.customers.length, 0, "matches nothing");
+});
+await test("oversized fields and broken JSON are refused", async () => {
+  eq((await call("POST", "/api/app/tabs", { token: staff, body: { label: "x".repeat(500) } })).json.code, "label_too_long", "label");
+  const r = await fetch(API + "/api/app/tabs", { method: "POST", headers: { Authorization: `Bearer ${staff}`, "Content-Type": "application/json" }, body: "{nope" });
+  eq(r.status, 400, "broken json");
+});
+await test("negative, fractional and unknown payments are refused", async () => {
+  const t = await ok(call("POST", "/api/app/tabs", { token: staff, body: { table: "99" } }), "tab");
+  await ok(call("POST", `/api/app/tabs/${t.id}/items`, { token: staff, body: { items: [{ drinkId: pils.id, qty: 1 }] } }), "items");
+  eq((await call("POST", `/api/app/tabs/${t.id}/payments`, { token: staff, body: { amountCents: -500, method: "cash" } })).status, 422, "negative");
+  eq((await call("POST", `/api/app/tabs/${t.id}/payments`, { token: staff, body: { amountCents: 1.5, method: "cash" } })).status, 422, "fraction");
+  eq((await call("POST", `/api/app/tabs/${t.id}/payments`, { token: staff, body: { amountCents: 100, tipCents: -1, method: "cash" } })).status, 422, "negative tip");
+  eq((await call("POST", `/api/app/tabs/${t.id}/payments`, { token: staff, body: { amountCents: 100, method: "bitcoin" } })).status, 422, "unknown method");
+  await ok(call("POST", `/api/app/tabs/${t.id}/close`, { token: owner, body: { action: "void" } }), "void");
+});
+await test("logins lock after 8 wrong passwords (per email)", async () => {
+  const email = `nobody-${Date.now()}@paulaner.local`;
+  let last;
+  for (let i = 0; i < 9; i++) last = await call("POST", "/api/app/login", { body: { email, password: "x" } });
+  eq(last.status, 429, "locked");
+});
+await test("unknown and known emails take about as long to refuse", async () => {
+  const time = async (email) => {
+    const t0 = performance.now();
+    await call("POST", "/api/app/login", { body: { email, password: "definitely-wrong" } });
+    return performance.now() - t0;
+  };
+  const known = [];
+  const unknown = [];
+  for (let i = 0; i < 3; i++) {
+    known.push(await time("owner.test@paulaner.local"));
+    unknown.push(await time(`ghost-${i}-${Date.now()}@paulaner.local`));
+  }
+  const median = (a) => a.sort((x, y) => x - y)[1];
+  const ratio = median(known) / median(unknown);
+  if (ratio > 2.5 || ratio < 0.4) throw new Error(`timing differs: known ${median(known).toFixed(0)} ms vs unknown ${median(unknown).toFixed(0)} ms`);
+  // A correct login clears the wrong attempts, so the test account isn't locked.
+  await login("owner.test@paulaner.local", "Owner-Test-2026");
+});
+
 console.log("\nFigures & lists");
 await test("today's figures add up", async () => {
   const s = await ok(call("GET", "/api/app/stats", { token: staff }), "stats");
-  eq(s.revenueCents, 1000 + 850 + 2100, "revenue (refund excluded)");
-  eq(s.tipsCents, 150 + 100, "tips");
-  eq(s.debts.balanceCents, 350, "Erika owes one Pils");
-  eq(s.topDrinks[0].name, "Paulaner Pils", "top drink");
-  const cash = s.byMethod.find((m) => m.method === "cash");
-  eq(cash.amount, 1000 + 2100, "cash");
-  if (s.voids.count < 1) throw new Error("voids not counted");
+  const cashOf = (x) => x.byMethod.find((m) => m.method === "cash")?.amount ?? 0;
+  eq(s.revenueCents - before.revenueCents, 1000 + 850 + 2100 + extraCash, "revenue added (refunds excluded)");
+  eq(s.tipsCents - before.tipsCents, 150 + 100, "tips added");
+  eq(s.debts.balanceCents - before.debts.balanceCents, 350, "Erika owes one Pils");
+  eq(cashOf(s) - cashOf(before), 1000 + 2100 + extraCash, "cash added");
+  if (s.voids.count <= before.voids.count) throw new Error("voids not counted");
 });
 await test("lists: open, on account, closed today", async () => {
   const open = await ok(call("GET", "/api/app/tabs?status=open", { token: staff }), "open");
