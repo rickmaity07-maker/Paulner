@@ -10,7 +10,7 @@
   records it in the database. Reads DATABASE_URL and BLOB_READ_WRITE_TOKEN
   from .env.local; --env-file=.env.test.local publishes to the test database.
 */
-import { execFileSync } from "node:child_process";
+import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -48,11 +48,11 @@ const versionName =
 if (!/^\d+\.\d+\.\d+$/.test(versionName)) fail(`Version name must look like 1.2.0, got ${versionName}`);
 console.log(`→ Building ${versionName} (build ${versionCode}) …`);
 
-const gradlew = process.platform === "win32" ? "gradlew.bat" : "./gradlew";
-execFileSync(gradlew, ["assembleRelease", `-PversionCode=${versionCode}`, `-PversionName=${versionName}`, "--console=plain", "-q"], {
+// Full path: Windows may not run programs from the current folder.
+const gradlew = path.join(android, process.platform === "win32" ? "gradlew.bat" : "gradlew");
+execSync(`"${gradlew}" assembleRelease -PversionCode=${versionCode} -PversionName=${versionName} --console=plain -q`, {
   cwd: android,
   stdio: "inherit",
-  shell: process.platform === "win32",
 });
 
 const apk = path.join(android, "app", "build", "outputs", "apk", "release", "app-release.apk");
