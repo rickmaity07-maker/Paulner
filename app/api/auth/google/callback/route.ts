@@ -62,6 +62,7 @@ export async function GET(request: Request) {
 
   await sql`update users set last_login_at = now() where id = ${user.id}`;
   await createSession(user.id);
+  if (user.role === "owner") await logActivity({ id: user.id, email: user.email }, "Angemeldet (Google)", "user", user.id);
   const destination = flow.next || (user.role === "owner" ? "/admin" : "/profile");
   return NextResponse.redirect(new URL(destination, url), 303);
 }
