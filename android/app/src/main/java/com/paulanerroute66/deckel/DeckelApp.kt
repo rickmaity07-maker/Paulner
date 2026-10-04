@@ -12,6 +12,7 @@ class Container(app: Application) {
     val session = SessionStore(app)
     val api = Api(BuildConfig.API_URL, tokenProvider = { session.token })
     val reader = CardReader(app, api)
+    val updater = com.paulanerroute66.deckel.updates.Updater(app, api)
 }
 
 class DeckelApp : Application() {

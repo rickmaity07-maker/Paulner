@@ -19,6 +19,7 @@ data class Strings(
     val history: History,
     val settings: Settings,
     val common: Common,
+    val update: UpdateCopy,
     val errors: Map<String, String>,
 ) {
     fun error(code: String) = errors[code] ?: errors.getValue("unknown")
@@ -78,6 +79,13 @@ data class Settings(
     val readerTapToPay: String, val readerSimulator: String, val readerOff: String, val readerStatus: String, val connect: String,
     val disconnect: String, val connected: (String) -> String, val notConnected: String, val connecting: String, val server: String,
     val version: String, val signOut: String, val signOutConfirm: String, val ttpUnsupported: String,
+)
+
+data class UpdateCopy(
+    val available: (String) -> String, val title: String, val mandatoryTitle: String, val mandatoryBody: String, val whatsNew: String,
+    val install: String, val later: String, val downloading: (Int) -> String, val installing: String, val permissionTitle: String,
+    val permissionBody: String, val openSettings: String, val failed: String, val reasons: Map<String, String>, val check: String,
+    val upToDate: String, val current: (String) -> String,
 )
 
 data class Common(
@@ -214,6 +222,16 @@ val German = Strings(
         loading = "Lädt …", done = "Fertig", yes = "Ja", no = "Nein", owner = "Inhaber", staff = "Personal", refresh = "Aktualisieren", undo = "Rückgängig",
         added = { "$it gebucht" },
     ),
+    update = UpdateCopy(
+        available = { "Update $it verfügbar" }, title = "Neue Version", mandatoryTitle = "Update erforderlich",
+        mandatoryBody = "Diese Version wird nicht mehr unterstützt. Bitte jetzt aktualisieren, danach geht es sofort weiter.",
+        whatsNew = "Neu in dieser Version", install = "Jetzt installieren", later = "Später", downloading = { "Wird geladen … $it %" },
+        installing = "Wird installiert …", permissionTitle = "Einmalig erlauben",
+        permissionBody = "Damit sich die App selbst aktualisieren kann, muss Android das einmal erlauben: „Aus dieser Quelle zulassen“ einschalten, dann zurückkehren und erneut auf „Jetzt installieren“ tippen.",
+        openSettings = "Einstellung öffnen", failed = "Das Update hat nicht geklappt.",
+        reasons = mapOf("checksum" to "Die Datei war beschädigt und wurde verworfen.", "offline" to "Keine Verbindung. Bitte WLAN prüfen.", "aborted" to "Die Installation wurde abgebrochen."),
+        check = "Nach Updates suchen", upToDate = "Die App ist auf dem neuesten Stand.", current = { "Installiert: $it" },
+    ),
     errors = errorsDe,
 )
 
@@ -277,6 +295,16 @@ val English = German.copy(
     common = Common(
         cancel = "Cancel", save = "Save", ok = "OK", retry = "Retry", back = "Back", offline = "Offline – changes are not being saved", loading = "Loading …",
         done = "Done", yes = "Yes", no = "No", owner = "Owner", staff = "Staff", refresh = "Refresh", undo = "Undo", added = { "$it booked" },
+    ),
+    update = UpdateCopy(
+        available = { "Update $it available" }, title = "New version", mandatoryTitle = "Update required",
+        mandatoryBody = "This version is no longer supported. Please update now; you'll be straight back in afterwards.",
+        whatsNew = "What's new", install = "Install now", later = "Later", downloading = { "Downloading … $it %" },
+        installing = "Installing …", permissionTitle = "Allow once",
+        permissionBody = "So the app can update itself, Android needs a one-time permission: switch on \"Allow from this source\", come back and tap \"Install now\" again.",
+        openSettings = "Open setting", failed = "The update didn't work.",
+        reasons = mapOf("checksum" to "The file was damaged and has been discarded.", "offline" to "No connection. Check the Wi-Fi.", "aborted" to "The installation was cancelled."),
+        check = "Check for updates", upToDate = "The app is up to date.", current = { "Installed: $it" },
     ),
     errors = errorsEn,
 )

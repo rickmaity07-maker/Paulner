@@ -73,6 +73,9 @@ data class UiState(
     // Card reader
     val readerMode: ReaderMode = ReaderMode.Off,
     val readerState: ReaderState = ReaderState.Off,
+    // Online updates
+    val update: com.paulanerroute66.deckel.updates.UpdateState = com.paulanerroute66.deckel.updates.UpdateState.Idle,
+    val updateDismissed: Boolean = false,
 ) {
     val strings: Strings get() = stringsFor(language)
     val isOwner get() = user?.isOwner == true
@@ -106,6 +109,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val api = container.api
     private val session = container.session
     private val reader = container.reader
+    private val updater = container.updater
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state
@@ -122,7 +126,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (saved.token != null && saved.user != null) startSession(saved.user) else _state.update { it.copy(phase = Phase.SignedOut) }
         }
         viewModelScope.launch { reader.state.collect { s -> _state.update { it.copy(readerState = s) } } }
+        viewModelScope.launch { updater.state.collect { s -> _state.update { it.copy(update = s) } } }
+        // Look for a new version right away, then every half hour, signed in or not.
+        viewModelScope.launch {
+            while (isActive) {
+                updater.check()
+                delay(30 * 60_000L)
+            }
+        }
     }
+
+    /* ---------- Online updates ---------- */
+
+    fun checkForUpdates() = viewModelScope.launch {
+        _state.update { it.copy(updateDismissed = false) }
+        if (updater.check() is com.paulanerroute66.deckel.updates.UpdateState.Idle) notify(strings.update.upToDate)
+    }
+
+    fun installUpdate(release: com.paulanerroute66.deckel.updates.Release) {
+        _state.update { it.copy(updateDismissed = false) }
+        viewModelScope.launch { updater.downloadAndInstall(release) }
+    }
+
+    fun dismissUpdate() = _state.update { it.copy(updateDismissed = true) }
+    fun retryUpdate() = updater.dismissFailure()
+    fun updatePermissionIntent() = updater.permissionIntent()
+    val currentVersionName: String get() = com.paulanerroute66.deckel.BuildConfig.VERSION_NAME
 
     /* ---------- Plumbing ---------- */
 

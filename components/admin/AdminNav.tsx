@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import {
   BeerStein,
   CalendarCheck,
+  DeviceTablet,
   ChartPieSlice,
   ClockCounterClockwise,
   Clock,
@@ -25,6 +26,7 @@ const LINKS: { href: string; label: string; Icon: Icon }[] = [
   { href: "/admin/content", label: "Texte & Hinweis", Icon: TextAa },
   { href: "/admin/venue", label: "Bar & Sicherung", Icon: Storefront },
   { href: "/admin/users", label: "Nutzer & Rollen", Icon: Users },
+  { href: "/admin/app", label: "Tablet-App", Icon: DeviceTablet },
   { href: "/admin/activity", label: "Protokoll", Icon: ClockCounterClockwise },
 ];
 

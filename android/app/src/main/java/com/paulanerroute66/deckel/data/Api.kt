@@ -155,6 +155,11 @@ class Api(baseUrl: String, private val tokenProvider: () -> String?, client: OkH
 
     suspend fun stats(from: String, to: String): Stats = get("/api/app/stats?from=$from&to=$to")
 
+    /* ---------- Updates ---------- */
+
+    suspend fun updateInfo(current: Int): com.paulanerroute66.deckel.updates.UpdateInfo =
+        json.decodeFromString(raw("GET", "/api/app/version?current=$current", auth = false))
+
     /* ---------- Stripe ---------- */
 
     suspend fun stripeToken(): StripeToken = send("POST", "/api/app/stripe/connection-token")

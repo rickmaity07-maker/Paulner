@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -10,6 +12,19 @@ plugins {
 */
 val apiUrl = (findProperty("apiUrl") as String?) ?: "https://paulaner-teal.vercel.app"
 
+/* Set by scripts/release-app.mjs for every published version; tablets update to a higher versionCode. */
+val appVersionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
+val appVersionName = (findProperty("versionName") as String?) ?: "1.0.0"
+
+/*
+  The release key lives outside the repo (~/.android-paulaner). Every update must be
+  signed with this same key, or Android refuses to install it over the old version.
+*/
+val releaseKeys = Properties().apply {
+    val file = File(System.getProperty("user.home"), ".android-paulaner/keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
 android {
     namespace = "com.paulanerroute66.deckel"
     compileSdk {
@@ -20,10 +35,19 @@ android {
         applicationId = "com.paulanerroute66.deckel"
         minSdk = 30
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_URL", "\"$apiUrl\"")
+    }
+
+    signingConfigs {
+        if (releaseKeys.isNotEmpty()) create("release") {
+            storeFile = file(releaseKeys.getProperty("storeFile"))
+            storePassword = releaseKeys.getProperty("storePassword")
+            keyAlias = releaseKeys.getProperty("keyAlias")
+            keyPassword = releaseKeys.getProperty("keyPassword")
+        }
     }
 
     buildTypes {
@@ -31,7 +55,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 

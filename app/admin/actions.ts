@@ -378,3 +378,19 @@ export async function resetPassword(id: string, password: string) {
     return "Passwort geändert. Andere Geräte dieses Kontos wurden abgemeldet.";
   });
 }
+
+/* ---------- Tablet-App ---------- */
+
+export async function setReleaseFlags(id: string, flags: { mandatory?: boolean; published?: boolean }) {
+  return run(async (me) => {
+    const rows = (await db()`
+      update app_releases
+      set mandatory = coalesce(${flags.mandatory ?? null}, mandatory), published = coalesce(${flags.published ?? null}, published)
+      where id = ${str(id, 60, "Version")}
+      returning version_name, mandatory, published
+    `) as { version_name: string; mandatory: boolean; published: boolean }[];
+    if (!rows[0]) throw new InputError("Diese Version gibt es nicht mehr.");
+    await logActivity(me, "App-Version geändert", "app", id, `${rows[0].version_name}: ${rows[0].published ? "veröffentlicht" : "zurückgezogen"}${rows[0].mandatory ? ", Pflicht-Update" : ""}`);
+    return `Version ${rows[0].version_name} gespeichert.`;
+  });
+}

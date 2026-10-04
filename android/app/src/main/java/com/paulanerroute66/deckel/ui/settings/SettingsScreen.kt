@@ -98,7 +98,9 @@ fun SettingsScreen(state: UiState, vm: AppViewModel) {
         Card {
             Column {
                 Text("${strings.settings.server}: ${BuildConfig.API_URL}", color = Route66.Muted)
-                Text("${strings.settings.version}: ${BuildConfig.VERSION_NAME}", color = Route66.Muted)
+                Text("${strings.settings.version}: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})", color = Route66.Muted)
+                Spacer(Modifier.height(12.dp))
+                PillButton(strings.update.check, vm::checkForUpdates, kind = ButtonKind.Secondary, testTag = "check-updates")
             }
         }
     }

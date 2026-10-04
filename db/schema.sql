@@ -152,3 +152,20 @@ create table if not exists payments (
 create index if not exists payments_tab_idx on payments (tab_id);
 create index if not exists payments_customer_idx on payments (customer_id);
 create index if not exists payments_taken_idx on payments (taken_at desc);
+
+-- ---------- Online updates for the tablet app ----------
+-- One row per published version; the tablet installs the newest one. A mandatory
+-- version blocks older apps until they update (e.g. after an API change).
+create table if not exists app_releases (
+  id uuid primary key default gen_random_uuid(),
+  version_code integer not null unique,
+  version_name text not null,
+  url text not null,
+  sha256 text not null,
+  size_bytes bigint not null,
+  notes text not null default '',
+  notes_en text not null default '',
+  mandatory boolean not null default false,
+  published boolean not null default true,
+  created_at timestamptz not null default now()
+);

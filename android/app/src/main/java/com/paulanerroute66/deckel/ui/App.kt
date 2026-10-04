@@ -90,6 +90,8 @@ fun App(vm: AppViewModel) {
                     Phase.SignedIn -> Shell(state, vm)
                 }
             }
+            // Updates sit above every screen, sign-in included: a mandatory one must be installable before anyone logs in.
+            if (state.phase != Phase.Loading) com.paulanerroute66.deckel.updates.UpdateLayer(state, vm)
             // Top of the screen: at the bottom it would cover the pay and close buttons.
             SnackbarHost(snackbar, Modifier.align(Alignment.TopCenter).padding(top = 28.dp).testTag("snackbar"))
         }
