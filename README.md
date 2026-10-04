@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Paulaner Meets Route 66
 
-## Getting Started
+Website and admin portal for the bar at Am Zeughaus 8, 97421 Schweinfurt.
+German first, English via the DE/EN switch. Next.js 16, Tailwind 4, Neon Postgres.
 
-First, run the development server:
+## Run locally
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in DATABASE_URL at least
+npm run db:setup -- owner@example.com "a-long-password"
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## What's where
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Path | What |
+| --- | --- |
+| `/` | The site. Content comes from the database and is edited in the portal. |
+| `/login` | One login for everyone (same system as Bar-05). Owners go to `/admin`, guests to `/profile`. |
+| `/profile` | Guests: their bookings (cancel), details, password, data export, delete account. |
+| `/admin` | Owners: dashboard, bookings, drinks menu, taps, opening hours, texts & notice bar, venue & backup, users & roles, activity log. |
+| `/impressum`, `/datenschutz` | Legal pages; name, address and contact come from the portal. |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `db/schema.sql` – tables; `scripts/setup-db.mjs` applies it and creates owners.
+- `lib/data.ts` – the starting menu (prices from the printed card) and texts, copied into the database on first load.
+- `lib/i18n.ts` – fixed German/English copy. Editable texts carry their own German and English fields.
+- `lib/mailer.ts` – booking emails, active once the Gmail variables are set.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Neon project: **paulaner** (`morning-band-07935865`, aws-eu-central-1).

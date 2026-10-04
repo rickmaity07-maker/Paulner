@@ -1,26 +1,199 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+  Paulaner Meets Route 66 design tokens, lifted from the printed drinks menu:
+  cream paper, crimson headings, Route 66 blue for the small print, black ink.
 
+  Token names are semantic, not literal:
+    night   page background (cream paper)
+    moss    alternate band (deeper paper)
+    fern    photo placeholder / sunken surface
+    bone    ink, the main text colour
+    sage    muted ink
+    amber   the accent (crimson)
+    route   the second accent (Route 66 blue)
+    asphalt dark surfaces: the hero, the road, the ticket
+
+  z-index scale:
+    0  page background
+    10 page content
+    40 side rail / bottom dock
+    45 announcement bar
+    50 mobile sheet
+    60 film grain
+*/
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-night: #f3e7da;
+  --color-moss: #ead9c6;
+  --color-fern: #e0cab3;
+  --color-canopy: #d6bb9f;
+  --color-bone: #1f1a19;
+  --color-sage: #6d605a;
+  --color-amber: #b3203a;
+  --color-route: #1f78ad;
+  --color-asphalt: #171415;
+  --color-chrome: #f6efe6;
+  --color-neon: #ff3d5e;
+  --color-gold: #e8a33a;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-rye), Georgia, serif;
+
+  --ease-leaf: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-bloom: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-marquee-reverse: marquee 46s linear infinite reverse;
+  --animate-twinkle: twinkle 2.8s ease-in-out infinite;
+  --animate-flicker: flicker 7s linear infinite;
+
+  @keyframes marquee {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  @keyframes twinkle {
+    0%,
+    100% {
+      transform: scale(0.7) rotate(0deg);
+      opacity: 0.55;
+    }
+    50% {
+      transform: scale(1.1) rotate(45deg);
+      opacity: 1;
+    }
+  }
+
+  /* A neon tube that has seen a few winters: mostly on, with the odd stutter. */
+  @keyframes flicker {
+    0%,
+    18%,
+    22%,
+    25%,
+    53%,
+    57%,
+    100% {
+      opacity: 1;
+    }
+    20%,
+    24%,
+    55% {
+      opacity: 0.35;
+    }
   }
 }
 
+html {
+  background: var(--color-night);
+  color-scheme: light;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-night);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: var(--color-amber);
+  color: var(--color-chrome);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-route);
+  outline-offset: 3px;
+}
+
+/* Display type: Rye, the wanted-poster face from the menu card. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+/* Emphasis inside display type: the menu's blue. */
+.display em {
+  font-style: normal;
+  color: var(--color-route);
+}
+
+/* Small tracked capitals for navigation, buttons and tabs. */
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Paper: a faint warm wash so the cream never looks like a flat screen colour. */
+.paper {
+  background-image:
+    radial-gradient(120% 80% at 10% 0%, rgba(255, 255, 255, 0.45), transparent 60%),
+    radial-gradient(90% 60% at 100% 100%, rgba(179, 32, 58, 0.05), transparent 60%);
+}
+
+/* The menu card's frame: a thin ink rule inset from a rounded edge. */
+.menu-frame {
+  box-shadow:
+    inset 0 0 0 1px rgba(31, 26, 25, 0.12),
+    inset 0 0 0 7px var(--color-night),
+    inset 0 0 0 8px rgba(31, 26, 25, 0.55);
+}
+
+/* Neon glow for text that sits on asphalt. */
+.neon {
+  color: #fff4f5;
+  text-shadow:
+    0 0 6px rgba(255, 61, 94, 0.9),
+    0 0 18px rgba(255, 61, 94, 0.7),
+    0 0 42px rgba(255, 61, 94, 0.45);
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Ticket stub: half-circle bites cut out of both ends of the tear line. */
+.ticket-tear {
+  mask: radial-gradient(circle 14px at 0 0, transparent 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 14px at 100% 0, transparent 98%, #000) right / 51% 100% no-repeat;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
