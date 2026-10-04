@@ -33,9 +33,8 @@ const STEAM_SECONDS = 1.2;
 const WRITE_START = 1.0;
 const WRITE_SECONDS = 1.8;
 const MAX_DRIPS = 60;
-const HOLD_MS = 150; // a finger held this long without moving starts drawing
+const HOLD_MS = 250; // a finger held this long without moving starts drawing; a resting finger stays shorter
 const DECIDE_PX = 8; // movement before a touch counts as a sideways stroke or a scroll
-const DRAW_STICKY_MS = 1200; // after a stroke, the next touch draws straight away
 
 interface Drip {
   x: number;
@@ -400,13 +399,12 @@ export default function FogGlass({ word, layout = "center", hint, touchHint }: F
         - hold still for a moment, then move     draws, in any direction
         - start moving sideways                  draws
         - start moving up or down straight away  scrolls, and wipes nothing
-        - touch again soon after drawing         draws, so doodling never scrolls
+      Every touch decides afresh, so a swipe right after drawing still scrolls.
       Drawing cancels the touchmove, which is what keeps the page still.
     */
     let gesture: "idle" | "pending" | "draw" | "scroll" = "idle";
     let origin = { x: 0, y: 0 };
     let holdTimer = 0;
-    let lastDraw = -Infinity;
 
     const startDrawing = (x: number, y: number) => {
       gesture = "draw";
@@ -425,10 +423,6 @@ export default function FogGlass({ word, layout = "center", hint, touchHint }: F
       }
       const touch = event.touches[0];
       origin = { x: touch.clientX, y: touch.clientY };
-      if (performance.now() - lastDraw < DRAW_STICKY_MS) {
-        startDrawing(origin.x, origin.y);
-        return;
-      }
       gesture = "pending";
       holdTimer = window.setTimeout(() => {
         if (gesture !== "pending") return;
@@ -451,14 +445,19 @@ export default function FogGlass({ word, layout = "center", hint, touchHint }: F
         }
         startDrawing(origin.x, origin.y);
       }
-      if (event.cancelable) event.preventDefault();
+      // If the browser has already begun scrolling, the move can't be held back: let it scroll and stop wiping.
+      if (!event.cancelable) {
+        gesture = "scroll";
+        last = null;
+        return;
+      }
+      event.preventDefault();
       wipeAt(touch.clientX, touch.clientY);
     };
 
     const onTouchEnd = (event: TouchEvent) => {
       if (event.touches.length) return;
       window.clearTimeout(holdTimer);
-      if (gesture === "draw") lastDraw = performance.now();
       gesture = "idle";
       last = null;
     };
