@@ -151,7 +151,7 @@ export function Card({ title, action, children, className = "" }: { title?: Reac
 }
 
 export const FIELD =
-  "w-full rounded-xl bg-night/50 px-3.5 py-2.5 text-[15px] text-bone ring-1 ring-inset ring-bone/12 placeholder:text-sage/70 transition-shadow focus:bg-white focus:outline-none focus:ring-2 focus:ring-route";
+  "w-full rounded-xl bg-night/50 px-3.5 py-2.5 text-base text-bone md:text-[15px] ring-1 ring-inset ring-bone/12 placeholder:text-sage/70 transition-shadow focus:bg-white focus:outline-none focus:ring-2 focus:ring-route";
 
 export function Field({ label, hint, children, className = "" }: { label: string; hint?: string; children: (id: string) => ReactNode; className?: string }) {
   const id = useId();

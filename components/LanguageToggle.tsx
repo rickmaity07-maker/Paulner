@@ -26,7 +26,7 @@ export default function LanguageToggle({ tone = "light", className = "" }: { ton
             lang={option}
             aria-pressed={active}
             onClick={() => setLocale(option)}
-            className={`relative z-10 h-9 min-w-11 rounded-full px-2 lg:h-7 lg:min-w-9 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors duration-300 ${
+            className={`relative z-10 h-10 min-w-11 rounded-full px-2 lg:h-7 lg:min-w-9 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors duration-300 ${
               active ? "text-chrome" : dark ? "text-chrome/70 hover:text-chrome" : "text-bone/60 hover:text-bone"
             }`}
           >

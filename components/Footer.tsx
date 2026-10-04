@@ -42,27 +42,27 @@ export default function Footer({ venue, hero, year }: { venue: Venue; hero: Hero
 
         <div className="md:col-span-2">
           <h2 className="text-sm text-chrome/55">{t.footer.hello}</h2>
-          <ul className="mt-3 space-y-1.5">
+          <ul className="mt-2 md:mt-3 md:space-y-1.5">
             <li>
               <a
                 href={venue.maps}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 transition-colors hover:text-neon"
+                className="inline-flex min-h-10 items-center gap-1.5 transition-colors hover:text-neon md:min-h-0"
               >
                 <Star size={16} weight="fill" className="text-gold" /> {t.footer.onGoogle(venue.rating)}
               </a>
             </li>
             {venue.phone && (
               <li>
-                <a href={telHref(venue.phone)} className="transition-colors hover:text-neon">
+                <a href={telHref(venue.phone)} className="inline-flex min-h-10 items-center md:min-h-0 transition-colors hover:text-neon">
                   {venue.phone}
                 </a>
               </li>
             )}
             {venue.email && (
               <li>
-                <a href={`mailto:${venue.email}`} className="transition-colors hover:text-neon">
+                <a href={`mailto:${venue.email}`} className="inline-flex min-h-10 items-center md:min-h-0 transition-colors hover:text-neon">
                   {venue.email}
                 </a>
               </li>
@@ -73,7 +73,7 @@ export default function Footer({ venue, hero, year }: { venue: Venue; hero: Hero
                   href={venue.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 transition-colors hover:text-neon"
+                  className="inline-flex min-h-10 items-center gap-1.5 transition-colors hover:text-neon md:min-h-0"
                 >
                   <InstagramLogo size={18} /> Instagram
                 </a>
@@ -84,10 +84,10 @@ export default function Footer({ venue, hero, year }: { venue: Venue; hero: Hero
 
         <nav aria-label="Footer" className="md:col-span-2">
           <h2 className="text-sm text-chrome/55">{t.footer.onPage}</h2>
-          <ul className="mt-3 space-y-1.5">
+          <ul className="mt-2 md:mt-3 md:space-y-1.5">
             {NAV_LINKS.map((link) => (
               <li key={link.href}>
-                <a href={link.href} className="transition-colors hover:text-neon">
+                <a href={link.href} className="inline-flex min-h-10 items-center md:min-h-0 transition-colors hover:text-neon">
                   {t.nav[link.key]}
                 </a>
               </li>
@@ -97,14 +97,14 @@ export default function Footer({ venue, hero, year }: { venue: Venue; hero: Hero
 
         <p className="col-span-2 flex flex-wrap justify-between gap-4 border-t border-chrome/10 pt-6 text-sm text-chrome/55 md:col-span-12">
           <span>{t.footer.rights(year, venue.name)}</span>
-          <span className="flex flex-wrap gap-5">
-            <Link href="/impressum" className="transition-colors hover:text-chrome">
+          <span className="flex flex-wrap gap-x-5">
+            <Link href="/impressum" className="inline-flex min-h-10 items-center md:min-h-0 transition-colors hover:text-chrome">
               {t.footer.imprint}
             </Link>
-            <Link href="/datenschutz" className="transition-colors hover:text-chrome">
+            <Link href="/datenschutz" className="inline-flex min-h-10 items-center md:min-h-0 transition-colors hover:text-chrome">
               {t.footer.privacy}
             </Link>
-            <Link href="/login" className="transition-colors hover:text-chrome">
+            <Link href="/login" className="inline-flex min-h-10 items-center md:min-h-0 transition-colors hover:text-chrome">
               {t.footer.staff}
             </Link>
           </span>

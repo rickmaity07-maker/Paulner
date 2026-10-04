@@ -250,7 +250,7 @@ export default function ProfileView({ me, reservations, hasPassword }: Props) {
         </div>
       </section>
 
-      <Link href="/" className="mt-10 inline-block text-sm text-sage transition-colors hover:text-bone">
+      <Link href="/" className="mt-8 inline-flex min-h-10 items-center text-sm text-sage transition-colors hover:text-bone">
         {copy.back}
       </Link>
       </div>

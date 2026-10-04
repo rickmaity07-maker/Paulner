@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
@@ -36,8 +37,18 @@ const LINKS: { href: string; label: string; Icon: Icon }[] = [
 
 export default function AdminNav({ pending }: { pending: number }) {
   const pathname = usePathname();
+  const nav = useRef<HTMLElement>(null);
+
+  // Phones: the nav is a sideways row, so bring the current page's tab into view.
+  useEffect(() => {
+    const row = nav.current;
+    const current = row?.querySelector<HTMLElement>("[aria-current=page]");
+    if (!row || !current || row.scrollWidth <= row.clientWidth) return;
+    row.scrollTo({ left: current.offsetLeft - (row.clientWidth - current.offsetWidth) / 2, behavior: "smooth" });
+  }, [pathname]);
+
   return (
-    <nav aria-label="Verwaltung" className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
+    <nav ref={nav} aria-label="Verwaltung" className="no-scrollbar relative -mx-4 flex gap-1 overflow-x-auto px-4 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
       {LINKS.map(({ href, label, Icon }) => {
         const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
         return (

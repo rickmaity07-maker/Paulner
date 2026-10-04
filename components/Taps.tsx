@@ -68,7 +68,7 @@ export default function Taps({ taps }: { taps: Tap[] }) {
     <section ref={root} id="taps" className="paper relative overflow-hidden bg-moss">
       <div
         ref={track}
-        className="no-scrollbar flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 py-24 lg:h-[100dvh] lg:snap-none lg:gap-14 lg:overflow-visible lg:px-14 lg:py-[11vh]"
+        className="no-scrollbar flex snap-x snap-mandatory scroll-px-4 gap-5 overflow-x-auto px-4 py-24 lg:h-[100dvh] lg:snap-none lg:gap-14 lg:overflow-visible lg:px-14 lg:py-[11vh]"
       >
         <div className="flex w-[82vw] shrink-0 snap-start flex-col justify-center gap-6 sm:w-[60vw] lg:w-[30vw]">
           <p className="label text-route">{t.taps.eyebrow}</p>

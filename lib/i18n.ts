@@ -38,6 +38,7 @@ const de = {
   hero: {
     h1: (name: string, street: string, city: string) => `${name}, eine Bar in ${city.replace(/^\d+\s*/, "")}, ${street}`,
     hint: "Malt auf die Scheibe",
+    hintTouch: "Halten und malen",
     reviews: (rating: string, count: number) => `${rating.replace(".", ",")} · ${count} Bewertungen`,
     book: "Tisch reservieren",
     menu: "Zur Karte",
@@ -290,6 +291,7 @@ const en: Dict = {
   hero: {
     h1: (name: string, street: string, city: string) => `${name}, a bar at ${street} in ${city.replace(/^\d+\s*/, "")}`,
     hint: "Draw on the glass",
+    hintTouch: "Hold and draw",
     reviews: (rating: string, count: number) => `${rating} · ${count} reviews`,
     book: "Book a table",
     menu: "See the menu",

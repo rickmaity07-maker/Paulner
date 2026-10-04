@@ -126,7 +126,7 @@ export default function LoginForm({ next, initialMode, google, googleFailed }: P
         </button>
       </form>
 
-      <Link href="/" className="mt-8 inline-block text-sm text-chrome/55 transition-colors hover:text-chrome">
+      <Link href="/" className="mt-6 inline-flex min-h-10 items-center text-sm text-chrome/55 transition-colors hover:text-chrome">
         {copy.back}
       </Link>
     </>

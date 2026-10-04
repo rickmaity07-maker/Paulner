@@ -57,8 +57,11 @@ export default function Hero({ hero, venue, hours, closures, bookingEnabled }: H
   const py = useMotionValue(0);
   const tiltX = useSpring(px, { stiffness: 60, damping: 20 });
   const tiltY = useSpring(py, { stiffness: 60, damping: 20 });
-  const glowX = useTransform(tiltX, (v) => 50 + v * 1.4);
-  const glowY = useTransform(tiltY, (v) => 32 + v * 1.4);
+  // The glow only follows the mouse: repainting two full-screen gradients on every phone wobble is too costly.
+  const gx = useMotionValue(0);
+  const gy = useMotionValue(0);
+  const glowX = useTransform(useSpring(gx, { stiffness: 60, damping: 20 }), (v) => 50 + v * 1.4);
+  const glowY = useTransform(useSpring(gy, { stiffness: 60, damping: 20 }), (v) => 32 + v * 1.4);
   const blueX = useTransform(glowX, (v) => v + 18);
   const blueY = useTransform(glowY, (v) => v - 6);
   const pinkGlow = useMotionTemplate`radial-gradient(38% 32% at ${glowX}% ${glowY}%, rgba(255,61,94,0.28), transparent 70%)`;
@@ -69,14 +72,34 @@ export default function Hero({ hero, venue, hours, closures, bookingEnabled }: H
     const rect = event.currentTarget.getBoundingClientRect();
     px.set(((event.clientX - rect.left) / rect.width - 0.5) * -24);
     py.set(((event.clientY - rect.top) / rect.height - 0.5) * -16);
+    gx.set(px.get());
+    gy.set(py.get());
   };
+
+  // Phones: the photo leans as the phone tilts, measured from however it was held at first.
+  // iOS only reports tilt after a permission prompt, which a hero should not raise, so it stays still there.
+  useEffect(() => {
+    const Orientation = window.DeviceOrientationEvent as unknown as { requestPermission?: unknown } | undefined;
+    if (reduce || !Orientation || typeof Orientation.requestPermission === "function") return;
+    if (!window.matchMedia("(pointer: coarse)").matches) return;
+    let base: { beta: number; gamma: number } | null = null;
+    const onTilt = (event: DeviceOrientationEvent) => {
+      if (event.beta === null || event.gamma === null) return;
+      base ??= { beta: event.beta, gamma: event.gamma };
+      const clamp = (v: number, max: number) => Math.max(-max, Math.min(max, v));
+      px.set(clamp((event.gamma - base.gamma) * -0.8, 12));
+      py.set(clamp((event.beta - base.beta) * -0.5, 8));
+    };
+    window.addEventListener("deviceorientation", onTilt);
+    return () => window.removeEventListener("deviceorientation", onTilt);
+  }, [reduce, px, py]);
 
   return (
     <section
       ref={root}
       id="top"
       onPointerMove={handleMove}
-      className="relative h-[100dvh] min-h-[640px] touch-pan-y overflow-hidden bg-asphalt"
+      className="relative h-[100svh] min-h-[640px] touch-pan-y overflow-hidden bg-asphalt"
     >
       <motion.div style={{ y: photoY }} className="absolute inset-0">
         <motion.div style={{ x: tiltX, y: tiltY, scale: photoScale }} className="absolute inset-0">
@@ -98,7 +121,7 @@ export default function Hero({ hero, venue, hours, closures, bookingEnabled }: H
       </div>
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-linear-to-b from-asphalt/50 via-transparent to-asphalt/30" />
 
-      <FogGlass word={hero.fogWord} layout="baseline" hint={t.hero.hint} />
+      <FogGlass word={hero.fogWord} layout="baseline" hint={t.hero.hint} touchHint={t.hero.hintTouch} />
 
       <h1 className="sr-only">{t.hero.h1(venue.name, venue.street, venue.city)}</h1>
 
@@ -133,12 +156,12 @@ export default function Hero({ hero, venue, hours, closures, bookingEnabled }: H
           initial={{ opacity: 0, y: -24, filter: "blur(10px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 1.1, delay: 2.2, ease: EASE }}
-          className="max-w-md rounded-[1.75rem] bg-asphalt/55 p-1.5 ring-1 ring-chrome/15 backdrop-blur-xl"
+          className="max-w-md rounded-[1.75rem] bg-asphalt/65 p-1.5 ring-1 ring-chrome/15 backdrop-blur-md md:bg-asphalt/55 md:backdrop-blur-xl"
         >
           <div className="rounded-[calc(1.75rem-0.375rem)] p-6 shadow-[inset_0_1px_1px_rgba(246,239,230,0.12)] md:p-7">
             <div className="flex flex-wrap items-center gap-2">
               <span
-                className={`label inline-flex items-center gap-2 rounded-full px-3 py-1.5 ${
+                className={`label inline-flex items-center gap-2 rounded-full px-3 py-2.5 md:py-1.5 ${
                   status?.open ? "bg-emerald-400/15 text-emerald-200" : "bg-chrome/10 text-chrome/80"
                 }`}
               >
@@ -152,7 +175,7 @@ export default function Hero({ hero, venue, hours, closures, bookingEnabled }: H
                 href={venue.maps}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="label inline-flex items-center gap-1.5 rounded-full bg-chrome/10 px-3 py-1.5 text-chrome/85 transition-colors hover:bg-chrome/20"
+                className="label inline-flex items-center gap-1.5 rounded-full bg-chrome/10 px-3 py-2.5 text-chrome/85 md:py-1.5 transition-colors hover:bg-chrome/20"
               >
                 <Star size={12} weight="fill" className="text-gold" />
                 {t.hero.reviews(venue.rating, venue.reviews)}
@@ -163,7 +186,8 @@ export default function Hero({ hero, venue, hours, closures, bookingEnabled }: H
 
             <div className="mt-6 flex flex-wrap gap-3">
               {bookingEnabled && <ButtonLink href="#book">{t.hero.book}</ButtonLink>}
-              <ButtonLink href="#drinks" variant="ghost">
+              {/* Short phones: the dock already links the menu, and the word and hint need the room. */}
+              <ButtonLink href="#drinks" variant="ghost" className="max-md:[@media(max-height:700px)]:hidden">
                 {t.hero.menu}
               </ButtonLink>
             </div>

@@ -59,7 +59,7 @@ function AccountLink({ className, iconSize }: { className: string; iconSize: num
   return (
     <Link href={href} aria-label={label} className={className}>
       <Glyph size={iconSize} weight={account ? "fill" : "regular"} />
-      <span className="text-[9px] font-semibold uppercase tracking-[0.12em]">{label}</span>
+      <span className="whitespace-nowrap text-[10px] font-semibold uppercase leading-none lg:text-[9px] lg:tracking-[0.12em]">{label}</span>
     </Link>
   );
 }
@@ -180,18 +180,18 @@ export default function Rail({ bookingEnabled }: { bookingEnabled: boolean }) {
               href={link.href}
               aria-label={t.nav[link.key]}
               aria-current={isActive ? "true" : undefined}
-              className={`flex h-12 min-w-11 flex-col items-center justify-center gap-0.5 rounded-full px-1 transition-colors ${
+              className={`flex h-12 min-w-11 flex-col items-center justify-center gap-1 rounded-full px-0.5 transition-colors ${
                 isActive ? "text-amber" : "text-bone/70"
               }`}
             >
               <Glyph size={20} weight={isActive ? "fill" : "regular"} />
-              <span className="text-[8.5px] font-semibold uppercase tracking-[0.06em]">{t.nav[link.key]}</span>
+              <span className="whitespace-nowrap text-[10px] font-semibold uppercase leading-none">{t.nav[link.key]}</span>
             </a>
           );
         })}
         <AccountLink
           iconSize={20}
-          className="flex h-12 min-w-11 flex-col items-center justify-center gap-0.5 rounded-full px-1 text-bone/70"
+          className="flex h-12 min-w-11 flex-col items-center justify-center gap-1 rounded-full px-0.5 text-bone/70"
         />
         {bookingEnabled && (
           <a href="#book" aria-label={t.nav.book} className="flex h-12 w-12 items-center justify-center rounded-full bg-amber text-chrome active:scale-[0.97]">

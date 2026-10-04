@@ -33,6 +33,9 @@ const STEAM_SECONDS = 1.2;
 const WRITE_START = 1.0;
 const WRITE_SECONDS = 1.8;
 const MAX_DRIPS = 60;
+const HOLD_MS = 150; // a finger held this long without moving starts drawing
+const DECIDE_PX = 8; // movement before a touch counts as a sideways stroke or a scroll
+const DRAW_STICKY_MS = 1200; // after a stroke, the next touch draws straight away
 
 interface Drip {
   x: number;
@@ -48,6 +51,7 @@ interface FogGlassProps {
   word: string;
   layout?: "baseline" | "center";
   hint?: string;
+  touchHint?: string;
 }
 
 function paintFog(ctx: CanvasRenderingContext2D, w: number, h: number) {
@@ -128,7 +132,7 @@ function makeBrush(radius: number, dpr: number) {
   return brush;
 }
 
-export default function FogGlass({ word, layout = "center", hint }: FogGlassProps) {
+export default function FogGlass({ word, layout = "center", hint, touchHint }: FogGlassProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [touched, setTouched] = useState(false);
@@ -140,6 +144,8 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
     if (!wrap || !canvas || !host) return;
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Phones: the fog is soft anyway, so it is drawn at 1x and, once idle, at half the frame rate.
+    const phone = window.matchMedia("(pointer: coarse)").matches;
     const view = canvas.getContext("2d")!;
     const fog = document.createElement("canvas");
     const fogCtx = fog.getContext("2d")!;
@@ -164,6 +170,7 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
     let wordDripped = false;
     let nextAmbient = 0;
     let last: { x: number; y: number; t: number } | null = null;
+    let lastWipe = 0;
     const drips: Drip[] = [];
 
     const elapsed = () => (performance.now() - started) / 1000;
@@ -171,7 +178,7 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
     const setup = () => {
       w = wrap.clientWidth;
       h = wrap.clientHeight;
-      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      dpr = phone ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
       for (const c of [canvas, fog, mask]) {
         c.width = Math.round(w * dpr);
         c.height = Math.round(h * dpr);
@@ -198,6 +205,8 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
         baseline = h * 0.5 + fontSize * 0.34;
       }
       textWidth = (fontSize / 100) * at100;
+      // The hint sits just above the cap height of the word, wherever the word ended up.
+      wrap.style.setProperty("--word-top", `${Math.round(baseline - fontSize * 0.8)}px`);
     };
 
     const stamp = (x: number, y: number, scale = 1) => {
@@ -235,6 +244,7 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
         if (Math.random() < 0.02) spawnDrip(px + (Math.random() - 0.5) * BRUSH_RADIUS, py + BRUSH_RADIUS * 0.5 * scale);
       }
       last = { x, y, t: now };
+      lastWipe = now;
     };
 
     const wordLeft = () => (layout === "baseline" ? textX : textX - textWidth / 2);
@@ -337,6 +347,13 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
         maskCtx.fillRect(0, 0, w, h);
       }
 
+      // Drops and regrowth above still step every frame; only the drawing is skipped.
+      const idle = phone && t > WRITE_START + WRITE_SECONDS + 0.5 && performance.now() - lastWipe > 600;
+      if (idle && frame % 2) {
+        if (visible) raf = requestAnimationFrame(render);
+        return;
+      }
+
       // The glass steams up from clear when it is first seen.
       const steam = reduce ? 1 : Math.min(1, t / STEAM_SECONDS);
       view.globalCompositeOperation = "source-over";
@@ -356,28 +373,99 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
       if (visible) raf = requestAnimationFrame(render);
     };
 
-    const onMove = (event: PointerEvent) => {
+    let hinted = false;
+    const wipeAt = (clientX: number, clientY: number) => {
       const rect = wrap.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
       if (y < 0 || y > h) return;
       wipe(x, y);
-      setTouched(true);
+      if (!hinted) {
+        hinted = true;
+        setTouched(true);
+      }
+    };
+
+    // Mouse and pen wipe as they move; fingers go through the gesture below instead.
+    const onMove = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") wipeAt(event.clientX, event.clientY);
     };
     const onLeave = () => {
       last = null;
     };
-    // Phones: pointer events stop once the page starts scrolling, touch events keep coming,
-    // so a finger sliding over the glass keeps wiping it while the page scrolls as usual.
-    const onTouch = (event: TouchEvent) => {
+
+    /*
+      Fingers: a touch on the glass either draws or scrolls the page, never both,
+      decided before the page has moved:
+        - hold still for a moment, then move     draws, in any direction
+        - start moving sideways                  draws
+        - start moving up or down straight away  scrolls, and wipes nothing
+        - touch again soon after drawing         draws, so doodling never scrolls
+      Drawing cancels the touchmove, which is what keeps the page still.
+    */
+    let gesture: "idle" | "pending" | "draw" | "scroll" = "idle";
+    let origin = { x: 0, y: 0 };
+    let holdTimer = 0;
+    let lastDraw = -Infinity;
+
+    const startDrawing = (x: number, y: number) => {
+      gesture = "draw";
+      window.clearTimeout(holdTimer);
+      last = null;
+      wipeAt(x, y);
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      window.clearTimeout(holdTimer);
+      const target = event.target as Element | null;
+      // Two fingers are a pinch, and buttons in front of the glass keep their taps.
+      if (event.touches.length > 1 || !target || !wrap.contains(target)) {
+        gesture = "scroll";
+        return;
+      }
       const touch = event.touches[0];
-      if (!touch) return;
-      const rect = wrap.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-      if (y < 0 || y > h) return;
-      wipe(x, y);
-      setTouched(true);
+      origin = { x: touch.clientX, y: touch.clientY };
+      if (performance.now() - lastDraw < DRAW_STICKY_MS) {
+        startDrawing(origin.x, origin.y);
+        return;
+      }
+      gesture = "pending";
+      holdTimer = window.setTimeout(() => {
+        if (gesture !== "pending") return;
+        startDrawing(origin.x, origin.y);
+        navigator.vibrate?.(8);
+      }, HOLD_MS);
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch || gesture === "idle" || gesture === "scroll") return;
+      if (gesture === "pending") {
+        const dx = touch.clientX - origin.x;
+        const dy = touch.clientY - origin.y;
+        if (Math.hypot(dx, dy) < DECIDE_PX) return;
+        if (Math.abs(dy) > Math.abs(dx)) {
+          gesture = "scroll";
+          window.clearTimeout(holdTimer);
+          return;
+        }
+        startDrawing(origin.x, origin.y);
+      }
+      if (event.cancelable) event.preventDefault();
+      wipeAt(touch.clientX, touch.clientY);
+    };
+
+    const onTouchEnd = (event: TouchEvent) => {
+      if (event.touches.length) return;
+      window.clearTimeout(holdTimer);
+      if (gesture === "draw") lastDraw = performance.now();
+      gesture = "idle";
+      last = null;
+    };
+
+    // A finger held still on the glass would otherwise open the long-press menu mid-stroke.
+    const onContextMenu = (event: Event) => {
+      if (gesture === "draw") event.preventDefault();
     };
 
     let lastSize = { w: 0, h: 0 };
@@ -423,8 +511,11 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
         host.addEventListener("pointerleave", onLeave);
         host.addEventListener("pointerup", onLeave);
         host.addEventListener("pointercancel", onLeave);
-        host.addEventListener("touchmove", onTouch, { passive: true });
-        host.addEventListener("touchend", onLeave, { passive: true });
+        host.addEventListener("touchstart", onTouchStart, { passive: true });
+        host.addEventListener("touchmove", onTouchMove, { passive: false });
+        host.addEventListener("touchend", onTouchEnd, { passive: true });
+        host.addEventListener("touchcancel", onTouchEnd, { passive: true });
+        host.addEventListener("contextmenu", onContextMenu);
       });
 
     return () => {
@@ -437,17 +528,21 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
       host.removeEventListener("pointerleave", onLeave);
       host.removeEventListener("pointerup", onLeave);
       host.removeEventListener("pointercancel", onLeave);
-      host.removeEventListener("touchmove", onTouch);
-      host.removeEventListener("touchend", onLeave);
+      host.removeEventListener("touchstart", onTouchStart);
+      host.removeEventListener("touchmove", onTouchMove);
+      host.removeEventListener("touchend", onTouchEnd);
+      host.removeEventListener("touchcancel", onTouchEnd);
+      host.removeEventListener("contextmenu", onContextMenu);
+      window.clearTimeout(holdTimer);
     };
   }, [word, layout]);
 
   return (
-    <div ref={wrapRef} aria-hidden="true" className="absolute inset-0">
+    <div ref={wrapRef} aria-hidden="true" className="absolute inset-0 select-none [-webkit-touch-callout:none]">
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
       {hint && (
         <p
-          className={`label pointer-events-none absolute bottom-[42%] right-8 hidden items-center gap-2 rounded-full bg-asphalt/45 px-4 py-2.5 text-chrome/90 backdrop-blur-md transition-opacity duration-1000 ease-leaf md:flex ${
+          className={`label pointer-events-none absolute left-1/2 top-[calc(var(--word-top,70%)_-_3.5rem)] flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-asphalt/45 px-4 py-2.5 text-chrome/90 backdrop-blur-md transition-opacity duration-1000 ease-leaf md:top-auto md:bottom-[42%] md:left-auto md:right-8 md:translate-x-0 ${
             touched ? "opacity-0" : "opacity-100"
           }`}
         >
@@ -455,7 +550,8 @@ export default function FogGlass({ word, layout = "center", hint }: FogGlassProp
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-neon opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-neon" />
           </span>
-          {hint}
+          <span className={touchHint ? "pointer-coarse:hidden" : undefined}>{hint}</span>
+          {touchHint && <span className="hidden pointer-coarse:inline">{touchHint}</span>}
         </p>
       )}
     </div>

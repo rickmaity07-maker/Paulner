@@ -88,7 +88,18 @@ function Sign({ stop, point, progress, reduce, bounds }: { stop: Stop; point: { 
       <text x="0" y="-18" textAnchor="middle" fontFamily="var(--font-rye), Georgia, serif" fontSize="24" fill="#b3203a">
         {stop.title}
       </text>
-      <text x="0" y="5" textAnchor="middle" fontFamily="var(--font-geist), sans-serif" fontWeight="600" fontSize="14" letterSpacing="2" fill="#1f78ad">
+      {/* Long subtitles ("32 Google-Bewertungen") are squeezed to stay inside the frame. */}
+      <text
+        x="0"
+        y="5"
+        textAnchor="middle"
+        fontFamily="var(--font-geist), sans-serif"
+        fontWeight="600"
+        fontSize="14"
+        letterSpacing="2"
+        fill="#1f78ad"
+        {...(stop.sub.length > 17 ? { textLength: 204, lengthAdjust: "spacingAndGlyphs" } : {})}
+      >
         {stop.sub.toUpperCase()}
       </text>
     </motion.g>
@@ -164,7 +175,7 @@ export default function RoadTrip({ facts }: { facts: RoadFacts }) {
 
   return (
     <section ref={root} aria-label={t.road.label} className="relative h-[280vh] bg-asphalt lg:h-[340vh]">
-      <div className="sticky top-0 h-[100dvh] overflow-hidden">
+      <div className="sticky top-0 h-[100svh] overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(255,61,94,0.14),transparent_70%),radial-gradient(50%_40%_at_100%_100%,rgba(31,120,173,0.16),transparent_70%)]" />
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           {[

@@ -43,7 +43,7 @@ export default async function Home() {
       <SmoothScroll />
       <div
         aria-hidden="true"
-        className="grain pointer-events-none fixed inset-0 z-[60] opacity-[0.06] mix-blend-multiply"
+        className="grain pointer-events-none fixed inset-0 z-[60] hidden opacity-[0.06] mix-blend-multiply md:block"
       />
       <Rail bookingEnabled={bookingEnabled} />
 
