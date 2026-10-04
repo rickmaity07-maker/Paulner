@@ -49,7 +49,7 @@ class Api(baseUrl: String, private val tokenProvider: () -> String?, client: OkH
                 throw ApiException("offline", 0, e.message)
             }
             response.use {
-                val text = it.body.string()
+                val text = it.body?.string().orEmpty()
                 if (!it.isSuccessful) {
                     val parsed = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull()
                     throw ApiException(
