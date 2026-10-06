@@ -132,16 +132,28 @@ export default function Rail({ bookingEnabled }: { bookingEnabled: boolean }) {
     <>
       <nav
         aria-label={t.nav.main}
-        className="fixed inset-y-0 left-0 z-40 hidden w-24 flex-col items-center border-r border-bone/10 bg-night/85 py-6 backdrop-blur-xl lg:flex"
+        className="fixed inset-y-0 left-0 z-40 hidden w-24 flex-col items-center overflow-y-auto overscroll-contain border-r border-bone/10 bg-night/85 py-6 backdrop-blur-xl lg:flex"
       >
-        <a href="#top" aria-label={t.nav.home} className="group flex flex-col items-center gap-1.5">
+        <a href="#top" aria-label={t.nav.home} className="group flex shrink-0 flex-col items-center gap-1.5">
           <Shield className="h-12 w-11 transition-transform duration-500 ease-leaf group-hover:-rotate-6 group-hover:scale-110" />
           <span className="label text-[9px] leading-none text-sage">Paulaner</span>
         </a>
 
-        <LanguageToggle className="mt-5" />
+        <LanguageToggle className="mt-5 shrink-0" />
 
-        <ul className="mt-6 flex flex-col gap-1">
+        {/* Account up top, so it never ends up below the fold on a short screen. */}
+        <div className="mt-3 flex shrink-0 flex-col items-center gap-1 border-b border-bone/10 pb-3">
+          <AccountLink
+            iconSize={22}
+            className="flex w-[72px] flex-col items-center gap-1 rounded-2xl py-2 text-bone/60 transition-colors hover:text-bone"
+          />
+          <SignOutButton
+            iconSize={22}
+            className="flex w-[72px] flex-col items-center gap-1 rounded-2xl py-2 text-bone/60 transition-colors hover:text-bone"
+          />
+        </div>
+
+        <ul className="mt-4 flex shrink-0 flex-col gap-1">
           {NAV_LINKS.map((link) => {
             const Glyph = ICONS[link.icon];
             const isActive = active === link.href.slice(1);
@@ -162,7 +174,7 @@ export default function Rail({ bookingEnabled }: { bookingEnabled: boolean }) {
           })}
         </ul>
 
-        <div aria-hidden="true" className="relative my-6 w-px flex-1 bg-bone/15">
+        <div aria-hidden="true" className="relative my-6 min-h-16 w-px flex-1 bg-bone/15">
           <motion.div style={{ scaleY: progress }} className="absolute inset-0 origin-top bg-amber" />
           <motion.div style={{ top: knob }} className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2">
             <motion.span className="block rounded-full bg-bone px-2 py-1 font-mono text-[10px] text-chrome ring-1 ring-amber/60">
@@ -171,19 +183,10 @@ export default function Rail({ bookingEnabled }: { bookingEnabled: boolean }) {
           </motion.div>
         </div>
 
-        <AccountLink
-          iconSize={22}
-          className="mb-1 flex w-[72px] flex-col items-center gap-1 rounded-2xl py-2.5 text-bone/60 transition-colors hover:text-bone"
-        />
-        <SignOutButton
-          iconSize={22}
-          className="mb-3 flex w-[72px] flex-col items-center gap-1 rounded-2xl py-2.5 text-bone/60 transition-colors hover:text-bone"
-        />
-
         {bookingEnabled && (
           <a
             href="#book"
-            className="flex h-[72px] w-[72px] flex-col items-center justify-center gap-1 rounded-2xl bg-amber text-chrome transition-colors duration-500 ease-leaf hover:bg-route active:scale-[0.97]"
+            className="flex h-[72px] w-[72px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl bg-amber text-chrome transition-colors duration-500 ease-leaf hover:bg-route active:scale-[0.97]"
           >
             <CalendarCheck size={22} weight="bold" />
             <span className="text-[10px] font-bold uppercase tracking-[0.14em]">{t.nav.book}</span>
@@ -191,17 +194,17 @@ export default function Rail({ bookingEnabled }: { bookingEnabled: boolean }) {
         )}
       </nav>
 
-      <div
-        className={`fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-40 flex items-center gap-2 transition-[transform,opacity] duration-300 lg:hidden ${
-          toggleHidden ? "pointer-events-none -translate-y-16 opacity-0" : ""
-        }`}
-      >
+      {/* Sign out stays put; only the language switch steps aside while scrolling down. */}
+      <div className="fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-40 flex items-center gap-2 lg:hidden">
         <SignOutButton
-          iconSize={20}
-          showLabel={false}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-asphalt/70 text-chrome/80 ring-1 ring-chrome/15 backdrop-blur-md"
+          iconSize={18}
+          className="flex h-12 items-center gap-1.5 rounded-full bg-night/90 px-4 text-bone ring-1 ring-bone/15 backdrop-blur-xl"
         />
-        <LanguageToggle tone="dark" />
+        <div
+          className={`transition-[transform,opacity] duration-300 ${toggleHidden ? "pointer-events-none -translate-y-16 opacity-0" : ""}`}
+        >
+          <LanguageToggle tone="dark" />
+        </div>
       </div>
 
       <nav
