@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "motion/react";
-import { BeerBottle, BeerStein, CalendarCheck, GearSix, Info, MapPin, UserCircle, type Icon } from "@phosphor-icons/react";
+import { BeerBottle, BeerStein, CalendarCheck, GearSix, Info, MapPin, SignOut, UserCircle, type Icon } from "@phosphor-icons/react";
+import { endSession } from "@/app/login/actions";
 import LanguageToggle from "@/components/LanguageToggle";
 import Shield from "@/components/Shield";
 import { useAccount } from "@/lib/account";
@@ -61,6 +62,33 @@ function AccountLink({ className, iconSize }: { className: string; iconSize: num
       <Glyph size={iconSize} weight={account ? "fill" : "regular"} />
       <span className="whitespace-nowrap text-[10px] font-semibold uppercase leading-none lg:text-[9px] lg:tracking-[0.12em]">{label}</span>
     </Link>
+  );
+}
+
+/* Only shown while signed in. Reloads afterwards so every part of the page forgets the account. */
+function SignOutButton({ className, iconSize, showLabel = true }: { className: string; iconSize: number; showLabel?: boolean }) {
+  const { t } = useLanguage();
+  const { account } = useAccount();
+  const [pending, startTransition] = useTransition();
+  if (!account) return null;
+  return (
+    <button
+      type="button"
+      aria-label={t.nav.signOut}
+      disabled={pending}
+      onClick={() =>
+        startTransition(async () => {
+          await endSession();
+          window.location.reload();
+        })
+      }
+      className={`${className} disabled:opacity-50`}
+    >
+      <SignOut size={iconSize} />
+      {showLabel && (
+        <span className="whitespace-nowrap text-[10px] font-semibold uppercase leading-none lg:text-[9px] lg:tracking-[0.12em]">{t.nav.signOut}</span>
+      )}
+    </button>
   );
 }
 
@@ -145,6 +173,10 @@ export default function Rail({ bookingEnabled }: { bookingEnabled: boolean }) {
 
         <AccountLink
           iconSize={22}
+          className="mb-1 flex w-[72px] flex-col items-center gap-1 rounded-2xl py-2.5 text-bone/60 transition-colors hover:text-bone"
+        />
+        <SignOutButton
+          iconSize={22}
           className="mb-3 flex w-[72px] flex-col items-center gap-1 rounded-2xl py-2.5 text-bone/60 transition-colors hover:text-bone"
         />
 
@@ -164,6 +196,11 @@ export default function Rail({ bookingEnabled }: { bookingEnabled: boolean }) {
           toggleHidden ? "pointer-events-none -translate-y-16 opacity-0" : ""
         }`}
       >
+        <SignOutButton
+          iconSize={20}
+          showLabel={false}
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-asphalt/70 text-chrome/80 ring-1 ring-chrome/15 backdrop-blur-md"
+        />
         <LanguageToggle tone="dark" />
       </div>
 

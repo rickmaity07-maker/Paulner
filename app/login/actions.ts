@@ -77,9 +77,14 @@ export async function authenticate(_previous: LoginState, form: FormData): Promi
   redirect(destination(user.role, next));
 }
 
-export async function signOut() {
+/* Ends the session without navigating; the homepage nav reloads itself afterwards. */
+export async function endSession() {
   const session = await getSession();
   await destroySession();
   if (session) await logActivity(session, "Abgemeldet", "user", session.id);
+}
+
+export async function signOut() {
+  await endSession();
   redirect("/");
 }
