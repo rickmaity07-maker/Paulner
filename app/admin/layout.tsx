@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowSquareOut, SignOut } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, SignOut } from "@phosphor-icons/react/dist/ssr";
 import AdminNav from "@/components/admin/AdminNav";
 import { ToastProvider } from "@/components/admin/ui";
 import Shield from "@/components/Shield";
@@ -37,8 +37,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               </span>
             </Link>
             <div className="flex items-center gap-4 lg:hidden">
-              <Link href="/" target="_blank" className="flex items-center gap-1.5 text-xs text-chrome/60 transition-colors hover:text-chrome">
-                Website <ArrowSquareOut size={14} />
+              <Link href="/" className="flex items-center gap-1.5 text-xs text-chrome/60 transition-colors hover:text-chrome">
+                Website <ArrowRight size={14} />
               </Link>
               <form action={signOut}>
                 <button type="submit" className="flex items-center gap-1.5 text-xs text-chrome/60 transition-colors hover:text-chrome">
@@ -69,10 +69,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <div className="hidden lg:mt-auto lg:block">
             <Link
               href="/"
-              target="_blank"
               className="flex items-center justify-between rounded-2xl bg-chrome/5 px-4 py-3 text-sm text-chrome/80 ring-1 ring-chrome/10 transition-colors hover:bg-chrome/10"
             >
-              Website ansehen <ArrowSquareOut size={16} />
+              Website ansehen <ArrowRight size={16} />
             </Link>
           </div>
         </aside>
