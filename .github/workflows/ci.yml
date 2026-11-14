@@ -20,7 +20,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Same Node (and npm 11) as development; npm 10 misreads this lockfile's optional wasm packages.
+          node-version: 24
           cache: npm
       - run: npm ci
       # Fails on any high or critical advisory in what ships to production.
