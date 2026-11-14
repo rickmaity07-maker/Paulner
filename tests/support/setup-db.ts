@@ -21,6 +21,9 @@ vi.mock("next/headers", () => ({
 /* after() needs a live request; in tests the deferred work (emails) is dropped. */
 vi.mock("next/server", async (original) => ({ ...(await original<typeof import("next/server")>()), after: () => {} }));
 
+/* Cache revalidation needs Next's request store; nothing is cached in tests. */
+vi.mock("next/cache", () => ({ revalidatePath: () => {}, revalidateTag: () => {} }));
+
 /* No emails leave the tests. */
 vi.mock("@/lib/mailer", () => ({
   notifyGuest: vi.fn(async () => {}),

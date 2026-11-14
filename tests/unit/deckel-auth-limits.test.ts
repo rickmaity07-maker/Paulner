@@ -3,6 +3,30 @@ import { ApiError } from "@/lib/app-auth";
 import { hashPassword, safeNext, verifyPassword, verifyPasswordOrDummy } from "@/lib/auth";
 import { allocateItems, packItems, toCents, unpackItems, type TabDetail } from "@/lib/deckel";
 import { RateLimiter, clientIp, ruleFor } from "@/lib/rate-limit";
+import { contentSecurityPolicy } from "@/lib/csp";
+
+describe("content security policy", () => {
+  const policy = contentSecurityPolicy("abc123");
+  const directive = (name: string) => policy.split("; ").find((d) => d.startsWith(`${name} `)) ?? "";
+
+  it("runs only scripts carrying this request's nonce", () => {
+    expect(directive("script-src")).toBe("script-src 'self' 'nonce-abc123' 'strict-dynamic'");
+    expect(directive("script-src")).not.toContain("unsafe-inline");
+    expect(directive("script-src")).not.toContain("unsafe-eval");
+  });
+
+  it("blocks plugins, framing, foreign forms and base hijacking", () => {
+    expect(directive("object-src")).toBe("object-src 'none'");
+    expect(directive("frame-ancestors")).toBe("frame-ancestors 'none'");
+    expect(directive("base-uri")).toBe("base-uri 'self'");
+    expect(directive("form-action")).toBe("form-action 'self' https://accounts.google.com");
+    expect(directive("connect-src")).toBe("connect-src 'self'");
+  });
+
+  it("allows eval only while developing", () => {
+    expect(contentSecurityPolicy("n", true)).toContain("'unsafe-eval'");
+  });
+});
 
 describe("money", () => {
   it("turns menu prices into whole cents without float drift", () => {
