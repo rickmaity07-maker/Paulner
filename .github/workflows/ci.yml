@@ -23,7 +23,9 @@ jobs:
           # Same Node (and npm 11) as development; npm 10 misreads this lockfile's optional wasm packages.
           node-version: 24
           cache: npm
-      - run: npm ci
+      # npm install, as Vercel does: a lockfile written on Windows lacks some Linux-only
+      # optional entries (@img/sharp-wasm32 → @emnapi/*), which makes `npm ci` refuse it.
+      - run: npm install --no-audit --no-fund
       # Fails on any high or critical advisory in what ships to production.
       - run: npm run audit
       - run: npm run typecheck
