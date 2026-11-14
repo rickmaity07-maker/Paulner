@@ -1,21 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { contentSecurityPolicy } from "@/lib/csp";
-import { RateLimiter, clientIp, ruleFor } from "@/lib/rate-limit";
-
-const limiter = new RateLimiter();
+import { clientIp, ruleFor } from "@/lib/rate-limit";
+import { take } from "@/lib/rate-limit-store";
 
 /*
   Runs before every page and the guarded API routes:
-    1. per-IP rate limit on sign-in, booking and export (lib/rate-limit.ts)
+    1. per-IP rate limit on sign-in, booking and export, shared by all instances (lib/rate-limit-store.ts)
     2. a Content Security Policy with a fresh nonce for every page view, so the
        browser runs only the scripts this server sent (lib/csp.ts)
 */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const rule = ruleFor(request.method, pathname, request.headers.has("next-action"));
   if (rule) {
-    const wait = limiter.take(`${rule.name}:${clientIp(request.headers)}`, rule);
+    const wait = await take(rule, clientIp(request.headers));
     if (wait > 0) {
       return NextResponse.json(
         { code: "too_many", message: "Zu viele Versuche. Bitte in ein paar Minuten noch einmal." },

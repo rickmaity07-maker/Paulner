@@ -56,7 +56,7 @@ export async function startDb() {
 export async function resetDb() {
   await instance().exec(`
     truncate payment_items, payments, tab_items, tabs, customers, app_releases, activity_log,
-             site_content, reservations, login_attempts, sessions, users restart identity cascade;
+             site_content, reservations, login_attempts, sessions, users, rate_limits restart identity cascade;
     alter sequence tab_number_seq restart;
   `);
 }

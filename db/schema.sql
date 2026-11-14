@@ -179,3 +179,13 @@ create table if not exists app_releases (
   published boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+-- ---------- Rate limiting ----------
+-- One counter per endpoint and caller, shared by every server instance (proxy.ts).
+-- The caller is stored only as a keyed hash of the IP address; rows older than a day are purged.
+create table if not exists rate_limits (
+  key text primary key,
+  window_start timestamptz not null default now(),
+  hits integer not null default 1
+);
+create index if not exists rate_limits_window_idx on rate_limits (window_start);

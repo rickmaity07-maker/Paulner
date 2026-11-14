@@ -7,7 +7,10 @@
 */
 // Full browser run of the website against the local server on the TEST database.
 const pw = require(process.env.PWCORE);
-const BASE = "http://localhost:3100";
+const BASE = process.env.BASE ?? "http://localhost:3100";
+// BROWSER=<path> picks a Chromium; otherwise Brave if installed (this machine), else Playwright's own (CI).
+const BRAVE = "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe";
+const executablePath = process.env.BROWSER || (require("node:fs").existsSync(BRAVE) ? BRAVE : undefined);
 let passed = 0;
 const failed = [];
 const errors = [];
@@ -27,7 +30,7 @@ const expect = (c, m) => {
 const shot = (p, n) => p.screenshot({ path: `${require("os").tmpdir()}/web-${n}.png` });
 
 (async () => {
-  const browser = await pw.chromium.launch({ executablePath: "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe" });
+  const browser = await pw.chromium.launch(executablePath ? { executablePath } : {});
   const watch = (p, who) => {
     p.on("pageerror", (e) => errors.push(`${who}: ${e.message}`));
     p.on("console", (m) => m.type() === "error" && !/hydrat|favicon|Failed to load resource/i.test(m.text()) && errors.push(`${who}: ${m.text().slice(0, 160)}`));

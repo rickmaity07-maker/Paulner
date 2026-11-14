@@ -116,7 +116,10 @@ export default async function PrivacyPage() {
         </p>
         <p>
           Zum Schutz vor dem Erraten von Passwörtern zählen wir fehlgeschlagene Anmeldeversuche je E-Mail-Adresse
-          und sperren nach acht Fehlversuchen für 15 Minuten (Art. 6 Abs. 1 lit. f DSGVO).
+          und sperren nach acht Fehlversuchen für 15 Minuten (Art. 6 Abs. 1 lit. f DSGVO). Außerdem zählen wir
+          Anmeldungen, Reservierungsanfragen und Datenexporte je Internetanschluss, damit niemand die Seite mit
+          automatisierten Anfragen überlastet. Dafür speichern wir nicht eure IP-Adresse, sondern nur einen
+          verschlüsselten Prüfwert davon, und löschen ihn nach {RETENTION.rateLimitHours} Stunden.
         </p>
         <p>
           <strong className="text-bone">Anmeldung mit Google:</strong> Wenn ihr „Mit Google anmelden“ wählt, leitet
@@ -170,6 +173,10 @@ export default async function PrivacyPage() {
             <tr>
               <td className={`${ROW} text-sage`}>Fehlgeschlagene Anmeldeversuche</td>
               <td className={ROW}>{RETENTION.loginAttemptHours} Stunden</td>
+            </tr>
+            <tr>
+              <td className={`${ROW} text-sage`}>Zähler gegen automatisierte Anfragen (Prüfwert der IP-Adresse)</td>
+              <td className={ROW}>{RETENTION.rateLimitHours} Stunden</td>
             </tr>
             <tr>
               <td className={`${ROW} text-sage`}>Anmeldesitzungen</td>

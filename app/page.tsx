@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { connection } from "next/server";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import Book from "@/components/Book";
@@ -59,16 +60,43 @@ export default async function Home() {
             closures={site.closures}
             bookingEnabled={bookingEnabled}
           />
-          <Manifesto />
-          <RoadTrip facts={facts} />
-          <Drinks menu={site.menu} />
-          {site.taps.length > 0 && <Taps taps={site.taps} />}
-          {site.info.length > 0 && <Info info={site.info} />}
+          {/*
+            Each section below the first screen is its own Suspense boundary. The HTML is the same,
+            but React hydrates the sections one by one and can answer taps in between, instead of
+            blocking a phone for seconds while it wakes up the whole page at once.
+          */}
+          <Suspense>
+            <Manifesto />
+          </Suspense>
+          <Suspense>
+            <RoadTrip facts={facts} />
+          </Suspense>
+          <Suspense>
+            <Drinks menu={site.menu} />
+          </Suspense>
+          {site.taps.length > 0 && (
+            <Suspense>
+              <Taps taps={site.taps} />
+            </Suspense>
+          )}
+          {site.info.length > 0 && (
+            <Suspense>
+              <Info info={site.info} />
+            </Suspense>
+          )}
           <Marquee items={site.marquee} />
-          <Visit venue={site.venue} hours={site.hours} closures={site.closures} today={todayISO()} />
-          {bookingEnabled && <Book rules={{ hours: site.hours, closures: site.closures, booking: site.booking }} street={site.venue.street} />}
+          <Suspense>
+            <Visit venue={site.venue} hours={site.hours} closures={site.closures} today={todayISO()} />
+          </Suspense>
+          {bookingEnabled && (
+            <Suspense>
+              <Book rules={{ hours: site.hours, closures: site.closures, booking: site.booking }} street={site.venue.street} />
+            </Suspense>
+          )}
         </main>
-        <Footer venue={site.venue} hero={site.hero} year={new Date().getFullYear()} />
+        <Suspense>
+          <Footer venue={site.venue} hero={site.hero} year={new Date().getFullYear()} />
+        </Suspense>
       </div>
     </MotionProvider>
   );

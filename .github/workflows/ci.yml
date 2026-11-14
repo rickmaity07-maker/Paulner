@@ -33,3 +33,47 @@ jobs:
       # Unit tests, plus database tests on an in-memory Postgres (no secrets, never touches Neon).
       - run: npm test
       - run: npm run build
+
+  # The real app in a real browser, against the Neon test branch (never production).
+  e2e:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # One run at a time: every run shares the test database.
+    concurrency:
+      group: e2e-test-database
+      cancel-in-progress: false
+    env:
+      DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      CRON_SECRET: ci-only-cron-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Skip without the test database secret
+        id: gate
+        run: if [ -n "$DATABASE_URL" ]; then echo "run=yes" >> "$GITHUB_OUTPUT"; else echo "TEST_DATABASE_URL is not set; skipping."; fi
+      - if: steps.gate.outputs.run == 'yes'
+        run: npm install --no-audit --no-fund
+      - if: steps.gate.outputs.run == 'yes'
+        run: npm run build
+      - if: steps.gate.outputs.run == 'yes'
+        name: Install Playwright's Chromium
+        run: |
+          npm install --no-save --no-audit --no-fund playwright-core@1.62.1
+          npx playwright-core install --with-deps chromium chromium-headless-shell
+      - if: steps.gate.outputs.run == 'yes'
+        name: Start the app (no email, no Google, test database)
+        run: |
+          npx next start --port 3100 > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3100/api/health && break; sleep 1; done
+      - if: steps.gate.outputs.run == 'yes'
+        run: APP_API=http://localhost:3100 node scripts/test-app-api.mjs
+      - if: steps.gate.outputs.run == 'yes'
+        run: PWCORE="$PWD/node_modules/playwright-core" node scripts/test-website.cjs
+      - if: steps.gate.outputs.run == 'yes'
+        run: PWCORE="$PWD/node_modules/playwright-core" BASE=http://localhost:3100 node scripts/test-touch.cjs
+      - if: failure() && steps.gate.outputs.run == 'yes'
+        run: tail -100 server.log
