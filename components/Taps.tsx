@@ -1,15 +1,12 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import Image from "next/image";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { useGSAP } from "@gsap/react";
 import { ArrowRight } from "@phosphor-icons/react";
 import { useLanguage } from "@/lib/language";
 import { pick, type Tap } from "@/lib/types";
 
-gsap.registerPlugin(ScrollTrigger, useGSAP);
+const DESKTOP_MOTION = "(min-width: 1024px) and (prefers-reduced-motion: no-preference)";
 
 /*
   A walk along the taps. On desktop the section pins and vertical scroll pans the
@@ -22,10 +19,17 @@ export default function Taps({ taps }: { taps: Tap[] }) {
   const root = useRef<HTMLElement>(null);
   const track = useRef<HTMLDivElement>(null);
 
-  useGSAP(
-    () => {
-      const mm = gsap.matchMedia();
-      mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
+  // GSAP is only fetched where the pinned walk runs (desktop, motion allowed); phones never load it.
+  useEffect(() => {
+    if (!window.matchMedia(DESKTOP_MOTION).matches) return;
+    let revert = () => {};
+    let cancelled = false;
+    Promise.all([import("gsap"), import("gsap/ScrollTrigger")]).then(([{ gsap }, { ScrollTrigger }]) => {
+      if (cancelled || !root.current || !track.current) return;
+      gsap.registerPlugin(ScrollTrigger);
+      const mm = gsap.matchMedia(root.current);
+      revert = () => mm.revert();
+      mm.add(DESKTOP_MOTION, () => {
         const el = track.current!;
         const distance = () => el.scrollWidth - root.current!.clientWidth;
 
@@ -60,9 +64,12 @@ export default function Taps({ taps }: { taps: Tap[] }) {
           );
         });
       });
-    },
-    { scope: root },
-  );
+    });
+    return () => {
+      cancelled = true;
+      revert();
+    };
+  }, []);
 
   return (
     <section ref={root} id="taps" className="paper relative overflow-hidden bg-moss">

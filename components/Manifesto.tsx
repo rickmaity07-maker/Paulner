@@ -26,7 +26,7 @@ function InlinePhoto({ src, alt, progress, range }: { src: string; alt: string; 
         style={{ scale }}
         className="relative inline-block h-[0.78em] w-[1.7em] origin-center overflow-hidden rounded-full bg-fern align-[-0.06em] ring-2 ring-bone motion-reduce:scale-100!"
       >
-        <Image src={src} alt={alt} fill sizes="160px" className="object-cover" />
+        <Image src={src} alt={alt} fill sizes="(min-width: 768px) 160px, 72px" className="object-cover" />
       </motion.span>{" "}
     </>
   );

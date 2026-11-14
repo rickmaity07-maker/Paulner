@@ -143,7 +143,7 @@ export default function FogGlass({ word, layout = "center", hint, touchHint }: F
     if (!wrap || !canvas || !host) return;
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // Phones: the fog is soft anyway, so it is drawn at 1x and, once idle, at half the frame rate.
+    // Phones: the fog is soft anyway, so it is drawn at 1x.
     const phone = window.matchMedia("(pointer: coarse)").matches;
     const view = canvas.getContext("2d")!;
     const fog = document.createElement("canvas");
@@ -347,7 +347,8 @@ export default function FogGlass({ word, layout = "center", hint, touchHint }: F
       }
 
       // Drops and regrowth above still step every frame; only the drawing is skipped.
-      const idle = phone && t > WRITE_START + WRITE_SECONDS + 0.5 && performance.now() - lastWipe > 600;
+      // The resting fog only drifts slowly, so every device draws it at half rate until someone wipes.
+      const idle = t > WRITE_START + WRITE_SECONDS + 0.5 && performance.now() - lastWipe > 600;
       if (idle && frame % 2) {
         if (visible) raf = requestAnimationFrame(render);
         return;
@@ -374,6 +375,7 @@ export default function FogGlass({ word, layout = "center", hint, touchHint }: F
 
     let hinted = false;
     const wipeAt = (clientX: number, clientY: number) => {
+      if (!ready) return;
       const rect = wrap.getBoundingClientRect();
       const x = clientX - rect.left;
       const y = clientY - rect.top;
@@ -467,6 +469,9 @@ export default function FogGlass({ word, layout = "center", hint, touchHint }: F
       if (gesture === "draw") event.preventDefault();
     };
 
+    // The canvases are sized and painted only when the glass first comes near the screen,
+    // so the footer's glass costs nothing while the page loads.
+    let ready = false;
     let lastSize = { w: 0, h: 0 };
     const resize = new ResizeObserver(() => {
       // Ignore the small height changes from mobile browser bars; they would reset the glass.
@@ -474,7 +479,7 @@ export default function FogGlass({ word, layout = "center", hint, touchHint }: F
       const nh = wrap.clientHeight;
       if (nw === lastSize.w && Math.abs(nh - lastSize.h) < 120) return;
       lastSize = { w: nw, h: nh };
-      setup();
+      if (ready) setup();
     });
 
     let firstView = true;
@@ -482,6 +487,11 @@ export default function FogGlass({ word, layout = "center", hint, touchHint }: F
       const wasVisible = visible;
       visible = entry.isIntersecting;
       if (visible && !wasVisible) {
+        if (!ready) {
+          ready = true;
+          lastSize = { w: wrap.clientWidth, h: wrap.clientHeight };
+          setup();
+        }
         // The glass steams up the first time it is seen, not on page load.
         if (firstView) {
           started = performance.now();
@@ -500,9 +510,6 @@ export default function FogGlass({ word, layout = "center", hint, touchHint }: F
       .catch(() => undefined)
       .then(() => {
         if (cancelled) return;
-        lastSize = { w: wrap.clientWidth, h: wrap.clientHeight };
-        setup();
-        render();
         resize.observe(wrap);
         io.observe(wrap);
         host.addEventListener("pointermove", onMove);

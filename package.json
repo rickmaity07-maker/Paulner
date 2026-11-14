@@ -21,7 +21,6 @@
     "audit": "npm audit --omit=dev --audit-level=high"
   },
   "dependencies": {
-    "@gsap/react": "^2.1.2",
     "@neondatabase/serverless": "^1.2.1",
     "@phosphor-icons/react": "^2.1.10",
     "gsap": "^3.15.1",
