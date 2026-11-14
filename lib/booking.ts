@@ -51,6 +51,20 @@ export function slotsFor(date: string, rules: BookingRules) {
   return slots;
 }
 
+/*
+  Whether a slot on `date` has already started, given the bar's wall clock
+  (berlinNow()). Slots after midnight belong to the evening they follow, so
+  "00:30" on a Friday is later than "23:00" that Friday.
+*/
+export function slotHasPassed(date: string, time: string, rules: BookingRules, now: { date: string; minutes: number }) {
+  if (date > now.date) return false;
+  if (date < now.date) return true;
+  const open = hoursOn(date, rules)?.open;
+  let at = toMinutes(time);
+  if (open && at < toMinutes(open)) at += 24 * 60;
+  return at <= now.minutes;
+}
+
 export function todayISO() {
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;

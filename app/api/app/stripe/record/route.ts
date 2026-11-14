@@ -15,18 +15,25 @@ export const POST = appRoute(async (request, user) => {
   if (intent.status !== "succeeded") throw new ApiError(409, "payment_not_succeeded", intent.status);
   const tabId = intent.metadata.tab_id;
   if (!tabId) throw new ApiError(422, "payment_intent_foreign");
-  const [already] = (await db()`select id from payments where stripe_payment_intent = ${paymentIntentId}`) as unknown[];
-  if (already) return getTab(tabId);
-  return addPayment(
-    user,
-    tabId,
-    {
-      method: "tap_to_pay",
-      amountCents: Number(intent.metadata.amount_cents),
-      tipCents: Number(intent.metadata.tip_cents ?? 0),
-      note: "Tap to Pay",
-      items: unpackItems(intent.metadata),
-    },
-    paymentIntentId,
-  );
+  const recorded = async () =>
+    ((await db()`select id from payments where stripe_payment_intent = ${paymentIntentId}`) as unknown[]).length > 0;
+  if (await recorded()) return getTab(tabId);
+  try {
+    return await addPayment(
+      user,
+      tabId,
+      {
+        method: "tap_to_pay",
+        amountCents: Number(intent.metadata.amount_cents),
+        tipCents: Number(intent.metadata.tip_cents ?? 0),
+        note: "Tap to Pay",
+        items: unpackItems(intent.metadata),
+      },
+      paymentIntentId,
+    );
+  } catch (error) {
+    // The tablet retried while the first call was still saving: that one booked it, so this is a success too.
+    if (error instanceof ApiError && error.code === "payment_conflict" && (await recorded())) return getTab(tabId);
+    throw error;
+  }
 });

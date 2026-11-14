@@ -7,7 +7,8 @@ import { CheckCircle, Minus, Plus, SignIn, UserPlus, WarningCircle } from "@phos
 import Reveal from "@/components/Reveal";
 import Shield from "@/components/Shield";
 import { loginHref, useAccount } from "@/lib/account";
-import { slotsFor, todayISO, validateBooking, weekdayOf, type BookingErrorCode, type BookingErrors, type BookingRequest } from "@/lib/booking";
+import { slotHasPassed, slotsFor, todayISO, validateBooking, weekdayOf, type BookingErrorCode, type BookingErrors, type BookingRequest } from "@/lib/booking";
+import { berlinNow } from "@/lib/hours";
 import type { Dict } from "@/lib/i18n";
 import { useLanguage } from "@/lib/language";
 import type { BookingRules } from "@/lib/types";
@@ -138,8 +139,13 @@ export default function Book({ rules, street }: { rules: BookingRules; street: s
   const name = nameEdit ?? account?.name ?? "";
   const phone = phoneEdit ?? account?.phone ?? "";
 
-  const slots = useMemo(() => slotsFor(date, rules), [date, rules]);
-  const closedDay = Boolean(date) && slots.length === 0;
+  const allSlots = useMemo(() => slotsFor(date, rules), [date, rules]);
+  // Later today, times that have already gone by are not offered (the server refuses them too).
+  const slots = useMemo(() => {
+    const now = berlinNow();
+    return allSlots.filter((slot) => !slotHasPassed(date, slot, rules, now));
+  }, [allSlots, date, rules]);
+  const closedDay = Boolean(date) && allSlots.length === 0;
   const openDays = rules.hours.map((day, index) => (day.open ? t.days[index] : null)).filter(Boolean);
 
   const pickDate = (value: string) => {

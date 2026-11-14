@@ -1,7 +1,8 @@
 import { after } from "next/server";
 import { logActivity } from "@/lib/activity";
 import { getSession } from "@/lib/auth";
-import { validateBooking, type BookingRequest } from "@/lib/booking";
+import { slotHasPassed, validateBooking, type BookingRequest } from "@/lib/booking";
+import { berlinNow } from "@/lib/hours";
 import { db, hasDatabase } from "@/lib/db";
 import { notifyGuest, notifyNewReservation } from "@/lib/mailer";
 import { addBooking, getSite } from "@/lib/store";
@@ -44,7 +45,10 @@ export async function POST(request: Request) {
     note: String(body.note ?? "").trim(),
   };
 
-  const errors = validateBooking(clean, site);
+  // The bar's calendar, not the server's: Vercel runs on UTC, an hour or two behind Schweinfurt.
+  const now = berlinNow();
+  const errors = validateBooking(clean, site, now.date);
+  if (!errors.date && !errors.time && slotHasPassed(clean.date, clean.time, site, now)) errors.time = "slot";
   if (Object.keys(errors).length > 0) return Response.json({ code: "errors", errors }, { status: 422 });
 
   const booking = await addBooking({

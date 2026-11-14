@@ -318,6 +318,8 @@ export async function updateTab(user: AppUser, id: string, input: Record<string,
   let customerId = tab.customer_id;
   if (input.customerId !== undefined) {
     customerId = input.customerId ? uuid(input.customerId, "customer") : null;
+    // Moving a closed or on-account tab to another guest moves their debt, so only an owner may.
+    if (customerId !== tab.customer_id && tab.status !== "open" && user.role !== "owner") throw new ApiError(403, "customer_change_needs_owner");
     if (customerId) {
       const [c] = (await sql`select id from customers where id = ${customerId} and not archived`) as unknown[];
       if (!c) throw new ApiError(404, "customer_not_found");
@@ -366,6 +368,10 @@ export async function addItems(user: AppUser, id: string, input: Record<string, 
   if (payNow) {
     const method = PAY_METHODS.includes(payNow.method as PayMethod) ? (payNow.method as PayMethod) : null;
     if (!method || method === "tap_to_pay") throw new ApiError(422, "method_invalid");
+  }
+  // A round of free drinks (price 0) has nothing to pay; a 0 € payment would break the amount check.
+  if (payNow && roundCents > 0) {
+    const method = payNow.method as PayMethod;
     queries.push(sql`
       insert into payments (tab_id, customer_id, amount_cents, tip_cents, method, taken_by, note)
       values (${id}, ${tab.customer_id}, ${roundCents}, ${cents(payNow.tipCents ?? 0, "tip", { max: 100_000 })}, ${method}, ${user.id}, 'Runde')
@@ -412,7 +418,9 @@ export async function changeItem(user: AppUser, tabId: string, itemId: string, i
   } else if (input.action === "qty") {
     if (item.voided_at) throw new ApiError(409, "item_already_voided");
     const qty = cents(input.qty, "qty", { min: 1, max: 99 });
-    if (qty < item.qty && user.role !== "owner" && item.added_by !== user.id) throw new ApiError(403, "void_needs_owner");
+    // Lowering a quantity takes drinks back, so it follows the same rule as a void.
+    const fresh = Date.now() - new Date(item.added_at).getTime() < 10 * 60 * 1000;
+    if (qty < item.qty && user.role !== "owner" && !(fresh && item.added_by === user.id)) throw new ApiError(403, "void_needs_owner");
     await sql`update tab_items set qty = ${qty} where id = ${itemId}`;
     await logActivity(user, "Menge geändert", "tab", tabId, `#${tab.number} ${tab.label}: ${item.name} ${item.qty} → ${qty}`);
   } else throw new ApiError(422, "action_invalid");
@@ -493,6 +501,7 @@ export async function addPayment(user: AppUser, tabId: string, input: Record<str
             select 1 from tab_items i where i.tab_id = ${tabId} and i.qty < (
               select coalesce(sum(pi.qty), 0) from payment_items pi join payments p on p.id = pi.payment_id
               where pi.item_id = i.id and p.refunded_at is null))
+          or (${stripeIntent} <> '' and (select count(*) from payments where stripe_payment_intent = ${stripeIntent}) > 1)
         then 0 else 1 end) as ok
       `,
       sql`update tabs set updated_at = now() where id = ${tabId}`,
@@ -687,17 +696,34 @@ export async function settleCustomer(user: AppUser, id: string, input: Record<st
   const owed = tabs.reduce((n, t) => n + t.balanceCents, 0);
   if (left > owed) throw new ApiError(422, "amount_exceeds_balance");
   const queries = [];
+  const touched: string[] = [];
   for (const tab of tabs) {
     if (left <= 0) break;
     const part = Math.min(left, tab.balanceCents);
     left -= part;
+    touched.push(tab.id);
+    queries.push(sql`select id from tabs where id = ${tab.id} for update`);
     queries.push(sql`
       insert into payments (id, tab_id, customer_id, amount_cents, method, taken_by, note)
       values (${randomUUID()}, ${tab.id}, ${id}, ${part}, ${method}, ${user.id}, 'Schulden beglichen')
     `);
     if (tab.status === "on_account" && part === tab.balanceCents) queries.push(sql`update tabs set status = 'closed', updated_at = now() where id = ${tab.id}`);
   }
-  await sql.transaction(queries);
+  // Same guard as addPayment: if another device took money meanwhile, no tab may end up paid beyond what it owes.
+  for (const tabId of touched) {
+    queries.push(sql`
+      select 1 / (case when
+        (select coalesce(sum(amount_cents), 0) from payments where tab_id = ${tabId} and refunded_at is null)
+          > (select coalesce(sum(case when on_house then 0 else unit_price_cents * qty end), 0) from tab_items where tab_id = ${tabId} and voided_at is null)
+      then 0 else 1 end) as ok
+    `);
+  }
+  try {
+    await sql.transaction(queries);
+  } catch (error) {
+    if (String((error as Error)?.message).includes("division by zero")) throw new ApiError(409, "payment_conflict");
+    throw error;
+  }
   await logActivity(user, "Schulden beglichen", "customer", id, `${(Number(input.amountCents) / 100).toFixed(2)} € ${method}`);
   return getCustomer(id);
 }

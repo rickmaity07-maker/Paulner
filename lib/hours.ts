@@ -62,6 +62,20 @@ export function openStatus(hours: DayHours[], closures: Closure[], now = new Dat
   const closedToday = closures.some((closure) => closure.date === date);
   const today = hours[weekday];
 
+  // Last night's late close can run past midnight. Checked first: at 01:00 on a
+  // Saturday the bar is still open from Friday, even though it opens again at 18:00.
+  const yesterday = hours[(weekday + 6) % 7];
+  const yesterdayDate = berlinNow(new Date(now.getTime() - 24 * 60 * 60 * 1000)).date;
+  const closedYesterday = closures.some((closure) => closure.date === yesterdayDate);
+  if (
+    !closedYesterday &&
+    yesterday?.open &&
+    yesterday.close &&
+    toMinutes(yesterday.close) <= toMinutes(yesterday.open) &&
+    minutes < toMinutes(yesterday.close)
+  )
+    return { open: true, until: yesterday.close };
+
   if (!closedToday && today?.open) {
     const open = toMinutes(today.open);
     let close = today.close ? toMinutes(today.close) : 24 * 60;
@@ -69,11 +83,6 @@ export function openStatus(hours: DayHours[], closures: Closure[], now = new Dat
     if (minutes >= open && minutes < close) return { open: true, until: today.close };
     if (minutes < open) return { open: false, next: { day: weekday, time: today.open, inDays: 0 } };
   }
-
-  // Last night's late close can run past midnight.
-  const yesterday = hours[(weekday + 6) % 7];
-  if (yesterday?.open && yesterday.close && toMinutes(yesterday.close) <= toMinutes(yesterday.open) && minutes < toMinutes(yesterday.close))
-    return { open: true, until: yesterday.close };
 
   for (let step = 1; step <= 7; step++) {
     const day = (weekday + step) % 7;
