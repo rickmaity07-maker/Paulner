@@ -14,7 +14,7 @@
     "test:web": "node scripts/test-website.cjs",
     "test:touch": "node scripts/test-touch.cjs",
     "test:prod": "node scripts/smoke-production.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:db": "vitest run --project db",
