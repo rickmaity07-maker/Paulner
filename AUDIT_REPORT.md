@@ -27,7 +27,7 @@
   - CSP (`lib/csp.ts`, `proxy.ts`)
   - rate limits on login, tablet login, booking, Google sign-in and export, answering with 429 and Retry-After
 - **New pages:** 404 page, error page, `/api/health`.
-- **2026-11-15 (not yet pushed):** the 404 page renders per request (`await connection()`). The prebuilt version had no CSP nonce, so the browser blocked its scripts.
+- **2026-11-15 (pushed, 1bcb199):** the 404 page renders per request (`await connection()`). The prebuilt version had no CSP nonce, so the browser blocked its scripts.
 - **Speed:** GSAP and Lenis load only on desktop, the fog glass sets up lazily, and the homepage sections hydrate one at a time.
 
 ## Results
@@ -37,9 +37,8 @@
 
 ## Action needed
 
-1. Run `npm run db:setup` against the live database once, to create the `rate_limits` table; auto mode blocked doing it automatically. Until then the limits count per server instance.
-2. Release the tablet app from the machine that has the Android SDK and the `~/.android-paulaner` signing key. Never create a new key: the installed tablets would refuse the update.
-3. Push the 404 fix.
+1. ~~Create the `rate_limits` table on the live database~~ done 2026-11-15 (`npm run db:setup`, only `create … if not exists`); health check still `ok`.
+2. Release the tablet app from the machine that has the Android SDK and the `~/.android-paulaner` signing key (neither is on this PC). Never create a new key: the installed tablets would refuse the update.
 
 ## Known remaining
 
