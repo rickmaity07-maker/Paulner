@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import LegalShell from "@/components/LegalShell";
 
 export const metadata: Metadata = {
@@ -8,7 +9,9 @@ export const metadata: Metadata = {
 };
 
 /* Any address that doesn't exist: stays in the bar's look and leads back in. */
-export default function NotFound() {
+export default async function NotFound() {
+  // Rendered per request, so its scripts get this response's CSP nonce (a prebuilt page has none and would be blocked).
+  await connection();
   return (
     <LegalShell>
       <p className="mt-10 font-mono text-sm uppercase tracking-[0.2em] text-sage">Fehler 404 · Error 404</p>
